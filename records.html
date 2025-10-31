@@ -1,158 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>QAMS - Records</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 
   <style>
     body {
       font-family: 'Poppins', sans-serif;
-      background: linear-gradient(135deg, #d7f8e4 0%, #f9fff9 100%);
+      background: linear-gradient(to bottom right, #d0f8ce, #ffffff);
       min-height: 100vh;
       margin: 0;
-      padding: 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      color: #2e7d32;
+      padding: 15px;
+      color: #1b5e20;
     }
 
     h2 {
-      background: linear-gradient(to right, #4CAF50, #81C784);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      font-size: 26px;
-      margin-bottom: 25px;
+      color: #1b5e20;
+      margin: 10px 0 20px;
+      font-weight: 600;
       text-align: center;
-      letter-spacing: 1px;
     }
 
-    .table-container {
-      background: #ffffffcc;
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-      padding: 20px;
+    .controls {
       width: 100%;
-      max-width: 450px;
-      overflow-x: auto;
-      transition: 0.3s ease;
+      max-width: 980px;
+      display:flex;
+      justify-content: flex-end;
+      margin-bottom: 12px;
+      gap: 8px;
+    }
+
+    button {
+      background: linear-gradient(to right, #66bb6a, #43a047);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: 0.18s;
+    }
+    .add-btn {
+      background: linear-gradient(to right, #4caf50, #2e7d32);
+      padding: 10px 18px;
+      font-weight: 600;
+    }
+    button:hover { transform: translateY(-2px); }
+
+    .table-wrap {
+      width: 100%;
+      max-width: 980px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+      overflow: hidden;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
     }
-
     th, td {
-      padding: 12px 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #eef6ee;
       text-align: left;
-      border-bottom: 1px solid #e0e0e0;
       font-size: 14px;
+      vertical-align: middle;
+      word-break: break-word;
     }
-
     th {
-      background-color: #4CAF50;
-      color: white;
+      background: #4caf50;
+      color: #fff;
       font-weight: 600;
-      border-top-left-radius: 12px;
-      border-top-right-radius: 12px;
-    }
-
-    tr:hover {
-      background-color: #f1f8f4;
-      transition: 0.2s ease;
-    }
-
-    #dataBody:empty::after {
-      content: "No records yet. Scan a QR code to begin!";
-      display: block;
-      text-align: center;
-      padding: 20px;
-      color: #888;
       font-size: 14px;
     }
+    tr:nth-child(even) { background: #fbfff8; }
 
-    /* Back Button */
-    a {
-      display: inline-block;
-      margin-top: 25px;
+    input.editable {
+      width: 95%;
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #dcedc8;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .small {
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+
+    a.back {
+      display:inline-block;
+      margin-top: 16px;
+      color: #2e7d32;
       text-decoration: none;
-      background-color: #4CAF50;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 10px;
       font-weight: 600;
-      font-size: 14px;
-      box-shadow: 0 3px 8px rgba(76, 175, 80, 0.3);
-      transition: all 0.3s ease;
     }
 
-    a:hover {
-      background-color: #388e3c;
-      box-shadow: 0 5px 15px rgba(56, 142, 60, 0.3);
-    }
+    a.back:hover { text-decoration: underline; }
 
-    /* 📱 Responsive Design */
-    @media (max-width: 600px) {
-      .table-container {
-        padding: 15px;
-      }
-
-      table, thead, tbody, th, td, tr {
-        display: block;
-      }
-
-      thead {
-        display: none;
-      }
-
+    /* Responsive - mobile card style */
+    @media (max-width: 720px) {
+      .controls { justify-content: center; }
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
       tr {
-        background: white;
-        border-radius: 12px;
+        display: block;
         margin-bottom: 12px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        padding: 10px;
+        padding: 12px;
+        border-radius: 10px;
+        background: white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
       }
-
       td {
-        border: none;
         display: flex;
         justify-content: space-between;
         padding: 8px 6px;
-        font-size: 14px;
+        border: none;
       }
-
       td::before {
         content: attr(data-label);
         font-weight: 600;
         color: #2e7d32;
       }
+      input.editable { width: 62%; }
     }
   </style>
 </head>
 <body>
-  <h2>QAMS Scan Records</h2>
+  <h2>QAMS Attendance Records</h2>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Section</th>
-        <th>Timestamp</th>
-      </tr>
-    </thead>
-    <tbody id="dataBody"></tbody>
-  </table>
+  <div class="controls">
+    <button class="add-btn" id="btnAdd"> Add New Record</button>
+    <button id="btnReload" class="small"> Refresh</button>
+  </div>
 
-  <a href="index.html">🔙 Back to Scanner</a>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:38%;">Name</th>
+          <th style="width:28%;">Section</th>
+          <th style="width:22%;">Timestamp</th>
+          <th style="width:12%;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="dataBody"></tbody>
+    </table>
+  </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+  <a class="back" href="index.html">🔙 Back to Scanner</a>
 
+  <!-- Firebase compat (global firebase) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // Firebase config (same as your project)
     const firebaseConfig = {
       apiKey: "AIzaSyD9_SnkZwUKhTxWPw0xH5q6RjLSPTWjJDw",
       authDomain: "qams-2025.firebaseapp.com",
@@ -162,29 +172,121 @@
       appId: "1:827453407305:web:c1eba2c58cb57b85d9ff98"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    // Initialize firebase (compat)
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-    // Live update of all scan records
-    const scansRef = collection(db, "scans");
-    const q = query(scansRef, orderBy("studentId"));
+    const dataBody = document.getElementById('dataBody');
+    const scansColl = db.collection('scans');
 
-    onSnapshot(q, (snapshot) => {
-      const tableBody = document.getElementById("dataBody");
-      tableBody.innerHTML = "";
+    // Renders a row for a Firestore doc
+    function renderRow(doc) {
+      const data = doc.data();
+      const id = doc.id;
+      const tr = document.createElement('tr');
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const row = `
-          <tr>
-            <td data-label="Name">${data.name || "Unknown"}</td>
-            <td data-label="Section">${data.section || "N/A"}</td>
-            <td data-label="Timestamp">${data.timestamp || "N/A"}</td>
-          </tr>
-        `;
-        tableBody.innerHTML += row;
+      const nameVal = (data.name || '');
+      const sectionVal = (data.section || '');
+      const tsVal = (data.timestamp || '');
+
+      tr.innerHTML = `
+        <td data-label="Name">
+          <input class="editable name-${id}" value="${escapeHtml(nameVal)}" />
+        </td>
+        <td data-label="Section">
+          <input class="editable section-${id}" value="${escapeHtml(sectionVal)}" />
+        </td>
+        <td data-label="Timestamp">${escapeHtml(tsVal)}</td>
+        <td data-label="Actions">
+          <button onclick="saveRecord('${id}')" class="small"> Save</button>
+          <button onclick="deleteRecord('${id}')" class="small"> Delete</button>
+        </td>
+      `;
+      dataBody.appendChild(tr);
+    }
+
+    // Escape HTML to prevent accidental injection when rendering
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    // Live listener
+    function listenLive() {
+      dataBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:18px;color:#6d6d6d;">Loading…</td></tr>';
+      scansColl.orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+        dataBody.innerHTML = '';
+        snapshot.forEach(doc => renderRow(doc));
+      }, err => {
+        console.error('Snapshot error', err);
+        dataBody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:18px;color:#d32f2f;">Failed to load records</td></tr>`;
       });
+    }
+
+    // Add new record (modal-style prompts kept simple)
+    async function addRecord() {
+      const name = prompt('Enter student name (required):');
+      if (!name) return alert('Name is required.');
+      const section = prompt('Enter section (optional):') || 'Not Specified';
+      const timestamp = new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' });
+      try {
+        await scansColl.add({ name, section, timestamp });
+        alert('New record added.');
+      } catch (e) {
+        console.error(e);
+        alert('Failed to add record (see console).');
+      }
+    }
+
+    // Save (update) record
+    async function saveRecord(id) {
+      const nameEl = document.querySelector('.name-' + id);
+      const sectionEl = document.querySelector('.section-' + id);
+      if (!nameEl) return alert('Element not found.');
+      const name = nameEl.value.trim();
+      const section = sectionEl.value.trim();
+      if (!name) return alert('Name cannot be empty.');
+      try {
+        await scansColl.doc(id).update({ name, section });
+        alert(' Record updated.');
+      } catch (e) {
+        console.error(e);
+        alert('Failed to update (see console).');
+      }
+    }
+
+    // Delete record
+    async function deleteRecord(id) {
+      if (!confirm('Delete this record?')) return;
+      try {
+        await scansColl.doc(id).delete();
+        alert('🗑️ Record deleted.');
+      } catch (e) {
+        console.error(e);
+        alert('Failed to delete (see console).');
+      }
+    }
+
+    // Hook global functions so buttons can call them
+    window.addRecord = addRecord;
+    window.saveRecord = saveRecord;
+    window.deleteRecord = deleteRecord;
+
+    // Manual refresh (rebind listener by recreating it)
+    document.getElementById('btnReload').addEventListener('click', () => {
+      listenLive();
+      alert(' Refreshed.');
     });
+
+    document.getElementById('btnAdd').addEventListener('click', addRecord);
+
+    // Start live listener
+    listenLive();
   </script>
 </body>
 </html>
