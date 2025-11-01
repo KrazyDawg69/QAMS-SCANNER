@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>QAMS - QAMS SCANNER</title>
+  <title>QAMS - QR Scanner</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 
-   <style>
+  <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -85,7 +85,6 @@
   </style>
 </head>
 <body>
-    
 
   <div class="scanner-container">
     <h2>QAMS SCANNER</h2>
@@ -95,102 +94,112 @@
   </div>
 
   <script type="module">
-    import { 
-      initializeApp 
-    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { 
-      getFirestore, collection, query, where, getDocs, addDoc, updateDoc, doc 
-    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+  import { 
+    initializeApp 
+  } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+  import { 
+    getFirestore, collection, query, where, getDocs, addDoc, updateDoc 
+  } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-    // Firebase Configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyD9_SnkZwUKhTxWPw0xH5q6RjLSPTWjJDw",
-      authDomain: "qams-2025.firebaseapp.com",
-      projectId: "qams-2025",
-      storageBucket: "qams-2025.firebasestorage.app",
-      messagingSenderId: "827453407305",
-      appId: "1:827453407305:web:c1eba2c58cb57b85d9ff98"
-    };
+  // Firebase Config
+  const firebaseConfig = {
+    apiKey: "AIzaSyD9_SnkZwUKhTxWPw0xH5q6RjLSPTWjJDw",
+    authDomain: "qams-2025.firebaseapp.com",
+    projectId: "qams-2025",
+    storageBucket: "qams-2025.firebasestorage.app",
+    messagingSenderId: "827453407305",
+    appId: "1:827453407305:web:c1eba2c58cb57b85d9ff98"
+  };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-    // Handle QR scan result
-    async function onScanSuccess(decodedText) {
-      console.log("Decoded QR text:", decodedText);
-      document.getElementById('result').innerText = `Scanned: ${decodedText}`;
+  // Handle QR Scan
+  async function onScanSuccess(decodedText) {
+    console.log("Decoded QR text:", decodedText);
+    document.getElementById('result').innerText = `Scanned: ${decodedText}`;
 
-      // Normalize spaces and dashes
-      const text = decodedText.trim().replace(/\s+/g, ' ').replace(/\u2013|\u2014/g, '-');
+    // Normalize text
+    const text = decodedText.trim().replace(/\s+/g, ' ').replace(/\u2013|\u2014/g, '-');
 
-      // Try to match flexible formats
-      const patterns = [
-        /(2025-[A-Z]+-\d+)\s*-\s*\(([^)]+)\)\s*-\s*\[([^\]]+)\]/,   // full format with section
-        /(STUDENT-\d{4}-\d+)\s*-\s*\(([^)]+)\)\s*-\s*\[([^\]]+)\]/, // alternate format
-        /(2025-[A-Z]+-\d+)\s*-\s*\(([^)]+)\)/,                      // no section
-        /(STUDENT-\d{4}-\d+)\s*-\s*\(([^)]+)\)/                     // alternate no section
-      ];
+    // Accept multiple QR formats
+    const patterns = [
+      /(2025-[A-Z]+-\d+)\s*-\s*\(([^)]+)\)\s*-\s*\[([^\]]+)\]/,
+      /(STUDENT-\d{4}-\d+)\s*-\s*\(([^)]+)\)\s*-\s*\[([^\]]+)\]/,
+      /(2025-[A-Z]+-\d+)\s*-\s*\(([^)]+)\)/,
+      /(STUDENT-\d{4}-\d+)\s*-\s*\(([^)]+)\)/
+    ];
 
-      let studentId, name, section;
-      for (const pattern of patterns) {
-        const m = text.match(pattern);
-        if (m) {
-          studentId = m[1];
-          name = m[2];
-          section = m[3] || "";
-          break;
-        }
+    let studentId, name, section;
+    for (const pattern of patterns) {
+      const m = text.match(pattern);
+      if (m) {
+        studentId = m[1];
+        name = m[2];
+        section = m[3] || "";
+        break;
       }
+    }
 
-      if (!studentId || !name) {
-        alert("Invalid QR code format!");
-        return;
-      }
+    if (!studentId || !name) {
+      alert("Invalid QR code format!");
+      return;
+    }
 
-      const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+    const phTime = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }); // YYYY-MM-DD
 
-      try {
-        const scansRef = collection(db, "scans");
-        const q = query(scansRef, where("studentId", "==", studentId));
-        const querySnapshot = await getDocs(q);
+    try {
+      const scansRef = collection(db, "scans");
+      const q = query(scansRef, where("studentId", "==", studentId), where("date", "==", today));
+      const querySnapshot = await getDocs(q);
 
-        if (!querySnapshot.empty) {
-          const docRef = doc(db, "scans", querySnapshot.docs[0].id);
-          await updateDoc(docRef, { 
-            name,
-            section,
-            timestamp: phTime 
-          });
-          alert(`Updated timestamp for ${name}`);
+      if (querySnapshot.empty) {
+        // No record today → create new
+        await addDoc(scansRef, { 
+          studentId,
+          name,
+          section,
+          date: today,
+          inTime: phTime,
+          outTime: ""
+        });
+        alert(` In time recorded for ${name}`);
+        document.getElementById("result").innerText = `In time recorded for ${name}`;
+      } else {
+        // Record exists for today → update Out Time
+        const docRef = querySnapshot.docs[0].ref;
+        const existingData = querySnapshot.docs[0].data();
+
+        if (!existingData.outTime) {
+          await updateDoc(docRef, { outTime: phTime });
+          alert(` Out time recorded for ${name}`);
+          document.getElementById("result").innerText = `Out time recorded for ${name}`;
         } else {
-          await addDoc(scansRef, { 
-            studentId,
-            name,
-            section,
-            timestamp: phTime 
-          });
-          alert(`Attendance saved for ${name}`);
+          alert(`${name} already logged out today.`);
+          document.getElementById("result").innerText = `${name} already logged out today.`;
         }
-      } catch (err) {
-        console.error("Firestore error:", err);
-        alert("Error saving attendance.");
       }
-
-      html5QrcodeScanner.clear();
+    } catch (err) {
+      console.error("Firestore error:", err);
+      alert("Error saving attendance. Check internet connection.");
     }
 
-    function onScanFailure(error) {
-      console.log(`Scanning error: ${error}`);
-    }
+    html5QrcodeScanner.clear();
+  }
 
-    // QR Scanner setup
-    const html5QrcodeScanner = new Html5QrcodeScanner(
-      "reader",
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      false
-    );
+  function onScanFailure(error) {
+    console.log(`Scanning error: ${error}`);
+  }
 
-    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-  </script>
+  // Initialize Scanner
+  const html5QrcodeScanner = new Html5QrcodeScanner(
+    "reader",
+    { fps: 10, qrbox: { width: 250, height: 250 } },
+    false
+  );
+
+  html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+</script>
 </body>
 </html>
