@@ -30,7 +30,6 @@
       text-align: center;
     }
 
-    /* Search box (calendar input) */
     #search-box {
       width: 100%;
       max-width: 480px;
@@ -138,11 +137,6 @@
       outline: none;
     }
 
-    .record-search:focus {
-      border-color: #4caf50;
-      box-shadow: 0 0 4px rgba(76,175,80,0.4);
-    }
-
     .record {
       background: #f9fbe7;
       margin: 10px 0;
@@ -153,7 +147,18 @@
       line-height: 1.5;
     }
 
-    .record strong { color: #1b5e20; font-size: 1em; }
+    .status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85em;
+      margin-top: 6px;
+    }
+
+    .present { background: #c8e6c9; color: #1b5e20; }
+    .late { background: #fff9c4; color: #f57f17; }
+    .absent { background: #ffcdd2; color: #b71c1c; }
 
     a {
       margin-top: 30px;
@@ -190,7 +195,6 @@
 <body>
   <h2>QAMS Daily Records</h2>
 
-  <!-- 📅 Calendar-based date search -->
   <input type="date" id="search-box" placeholder="Search by date" />
 
   <div id="records-container"></div>
@@ -200,7 +204,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { 
-      getFirestore, collection, getDocs, deleteDoc, doc 
+      getFirestore, collection, getDocs, deleteDoc, doc, updateDoc 
     } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -221,16 +225,54 @@
 
     let grouped = {};
 
+    function getStatus(inTime, outTime) {
+  if (!inTime) return "Absent";
+
+  // Parse the time part
+  const timePart = inTime.split(",")[1]?.trim();
+  if (!timePart) return "Absent";
+
+  const now = new Date();
+  const [time, modifier] = timePart.split(" ");
+  let [hours, minutes] = time.split(":").map(Number);
+
+  if (modifier === "PM" && hours !== 12) hours += 12;
+  if (modifier === "AM" && hours === 12) hours = 0;
+
+  const checkIn = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+
+  // Class schedule
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 0);
+  const lateThreshold = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 10);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 11, 45);
+
+  let status = "Absent";
+
+  if (checkIn <= lateThreshold) status = "Present";
+  else if (checkIn > lateThreshold && checkIn <= end) status = "Late";
+  else status = "Absent";
+
+  // If they never scanned out
+  if (!outTime && status !== "Absent") status += " (No Out)";
+
+  return status;
+}
     async function loadRecords() {
       const querySnapshot = await getDocs(collection(db, "scans"));
       grouped = {};
 
-      querySnapshot.forEach(docSnap => {
+      for (const docSnap of querySnapshot.docs) {
         const data = docSnap.data();
         const dateKey = data.date || data.inTime?.split(",")[0] || "Unknown Date";
+
+        const status = getStatus(data.inTime);
+        if (data.status !== status) {
+          await updateDoc(doc(db, "scans", docSnap.id), { status });
+        }
+
         if (!grouped[dateKey]) grouped[dateKey] = [];
-        grouped[dateKey].push({ id: docSnap.id, ...data });
-      });
+        grouped[dateKey].push({ id: docSnap.id, ...data, status });
+      }
 
       displayRecords(Object.keys(grouped));
     }
@@ -262,7 +304,6 @@
         const menu = document.createElement("div");
         menu.className = "menu";
 
-        // Export CSV
         const exportBtn = document.createElement("button");
         exportBtn.textContent = " Export CSV";
         exportBtn.onclick = (e) => {
@@ -270,7 +311,6 @@
           exportToCSV(grouped[date], date);
         };
 
-        // Delete folder
         const delBtn = document.createElement("button");
         delBtn.textContent = " Delete Folder";
         delBtn.onclick = async (e) => {
@@ -300,7 +340,6 @@
         const recordList = document.createElement("div");
         recordList.className = "record-list";
 
-        // Add search bar inside folder
         const recordSearch = document.createElement("input");
         recordSearch.type = "text";
         recordSearch.className = "record-search";
@@ -316,18 +355,21 @@
           records.forEach(r => {
             const div = document.createElement("div");
             div.className = "record";
-            div.innerHTML = `<strong>${r.name}</strong><br>
+            const statusClass = r.status === "Present" ? "present" : r.status === "Late" ? "late" : "absent";
+            div.innerHTML = `
+              <strong>${r.name}</strong><br>
               ID: ${r.studentId}<br>
               Section: ${r.section || "N/A"}<br>
               In: ${r.inTime || "—"}<br>
-              Out: ${r.outTime || "—"}`;
+              Out: ${r.outTime || "—"}<br>
+              <span class="status ${statusClass}">${r.status}</span>
+            `;
             recordsContainer.appendChild(div);
           });
         }
 
         showRecords(grouped[date]);
 
-        // Filter by name or ID
         recordSearch.addEventListener("input", () => {
           const q = recordSearch.value.toLowerCase();
           const filtered = grouped[date].filter(r =>
@@ -346,10 +388,9 @@
       });
     }
 
-    // CSV export
     function exportToCSV(records, date) {
       const csvRows = [];
-      const headers = ["Student ID", "Name", "Section", "Date", "In Time", "Out Time"];
+      const headers = ["Student ID", "Name", "Section", "Date", "In Time", "Out Time", "Status"];
       csvRows.push(headers.join(","));
       records.forEach(r => {
         const row = [
@@ -358,7 +399,8 @@
           `"${r.section || ''}"`,
           `"${r.date}"`,
           `"${r.inTime || ''}"`,
-          `"${r.outTime || ''}"`
+          `"${r.outTime || ''}"`,
+          `"${r.status || ''}"`
         ];
         csvRows.push(row.join(","));
       });
@@ -367,7 +409,6 @@
       saveAs(blob, fileName);
     }
 
-    // Calendar search
     searchBox.addEventListener("change", () => {
       const selectedDate = searchBox.value;
       if (!selectedDate) {
