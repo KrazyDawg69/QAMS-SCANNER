@@ -224,17 +224,56 @@ const searchBox = document.getElementById("search-box");
 
 let grouped = {};
 
-// 🧠 Load all records
+// ⏰ Function to compute attendance status
+function getStatus(inTime, outTime) {
+  if (!inTime) return "Absent";
+
+  // Parse the time part
+  const timePart = inTime.split(",")[1]?.trim();
+  if (!timePart) return "Absent";
+
+  const now = new Date();
+  const [time, modifier] = timePart.split(" ");
+  let [hours, minutes] = time.split(":").map(Number);
+
+  if (modifier === "PM" && hours !== 12) hours += 12;
+  if (modifier === "AM" && hours === 12) hours = 0;
+
+  const checkIn = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+
+  // Class schedule
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 0);
+  const lateThreshold = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 10);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 11, 45);
+
+  let status = "Absent";
+
+  if (checkIn <= lateThreshold) status = "Present";
+  else if (checkIn > lateThreshold && checkIn <= end) status = "Late";
+  else status = "Absent";
+
+  // If they never scanned out
+  if (!outTime && status !== "Absent") status += " (No Out)";
+
+  return status;
+}
+// 🧠 Load all records (fixed version)
 async function loadRecords() {
   const querySnapshot = await getDocs(collection(db, "scans"));
   grouped = {};
 
-  querySnapshot.forEach(docSnap => {
+  for (const docSnap of querySnapshot.docs) {
     const data = docSnap.data();
-    const dateKey = data.date || data.inTime?.split(",")[0] || "Unknown Date";
+    const dateKey = (data.date || data.inTime?.split(",")[0] || "Unknown Date").trim();
+    const status = getStatus(data.inTime, data.outTime);
+
+    if (data.status !== status) {
+      await updateDoc(doc(db, "scans", docSnap.id), { status });
+    }
+
     if (!grouped[dateKey]) grouped[dateKey] = [];
-    grouped[dateKey].push({ id: docSnap.id, ...data });
-  });
+    grouped[dateKey].push({ id: docSnap.id, ...data, status });
+  }
 
   displayRecords(Object.keys(grouped));
 }
@@ -326,9 +365,9 @@ function displayRecords(dateKeys) {
           Section: ${r.section || "N/A"}<br>
           In: ${r.inTime || "—"}<br>
           Out: ${r.outTime || "—"}<br>
+          <b>Status:</b> ${r.status || "Absent"}<br>
           <button style="margin-top:8px;padding:5px 10px;background:#81c784;border:none;border-radius:8px;color:white;cursor:pointer;">Edit</button>
         `;
-        // ✏️ Edit button
         const editBtn = div.querySelector("button");
         editBtn.onclick = () => openEditForm(r, date);
         recordsContainer.appendChild(div);
@@ -337,7 +376,6 @@ function displayRecords(dateKeys) {
 
     showRecords(grouped[date]);
 
-    // Filter by name or ID
     recordSearch.addEventListener("input", () => {
       const q = recordSearch.value.toLowerCase();
       const filtered = grouped[date].filter(r =>
@@ -356,10 +394,10 @@ function displayRecords(dateKeys) {
   });
 }
 
-// 🧾 CSV export
+// 🧾 CSV export (now includes Status)
 function exportToCSV(records, date) {
   const csvRows = [];
-  const headers = ["Student ID", "Name", "Section", "Date", "In Time", "Out Time"];
+  const headers = ["Student ID", "Name", "Section", "Date", "In Time", "Out Time", "Status"];
   csvRows.push(headers.join(","));
   records.forEach(r => {
     const row = [
@@ -368,7 +406,8 @@ function exportToCSV(records, date) {
       `"${r.section || ''}"`,
       `"${r.date}"`,
       `"${r.inTime || ''}"`,
-      `"${r.outTime || ''}"`
+      `"${r.outTime || ''}"`,
+      `"${r.status || getStatus(r.inTime, r.outTime)}"`
     ];
     csvRows.push(row.join(","));
   });
@@ -394,13 +433,11 @@ document.addEventListener("click", () => {
 
 // ✏️ Edit form popup
 function openEditForm(record, date) {
-  // Try to parse existing datetime into a proper format for datetime-local input
   const parseDateTime = (value) => {
     if (!value) return "";
     try {
       const dateObj = new Date(value);
       if (isNaN(dateObj)) return "";
-      // Format into YYYY-MM-DDTHH:mm (for datetime-local input)
       return dateObj.toISOString().slice(0, 16);
     } catch {
       return "";
@@ -441,7 +478,6 @@ function openEditForm(record, date) {
     const inInput = popup.querySelector("#editIn").value;
     const outInput = popup.querySelector("#editOut").value;
 
-    // Convert datetime-local to readable PH time format
     const toReadableTime = (datetime) => {
       if (!datetime) return "";
       return new Date(datetime).toLocaleString("en-PH", { timeZone: "Asia/Manila" });
@@ -451,8 +487,10 @@ function openEditForm(record, date) {
       name: popup.querySelector("#editName").value.trim(),
       section: popup.querySelector("#editSection").value.trim(),
       inTime: toReadableTime(inInput),
-      outTime: toReadableTime(outInput)
+      outTime: toReadableTime(outInput),
     };
+
+    updated.status = getStatus(updated.inTime, updated.outTime);
 
     await updateDoc(doc(db, "scans", record.id), updated);
     alert(" Record updated successfully!");
