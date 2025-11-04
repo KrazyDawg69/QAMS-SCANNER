@@ -141,11 +141,21 @@ function logout() {
     try { html5QrcodeScanner.clear(); } catch (e) {}
     html5QrcodeScanner = null;
   }
-  window.location.href = "index.html";
+  window.location.href = "index2.html";
 }
 window.logout = logout;
 
 async function onScanSuccess(decodedText) {
+  // Stop the scanner immediately to prevent multiple scans
+  if (html5QrcodeScanner) {
+    try {
+      await html5QrcodeScanner.clear();
+      html5QrcodeScanner = null;
+    } catch (e) {
+      console.log("Scanner cleanup error:", e);
+    }
+  }
+
   resultDiv.innerText = `Scanned: ${decodedText}`;
 
   const text = decodedText.trim().replace(/\s+/g, ' ').replace(/\u2013|\u2014/g, '-');
@@ -164,6 +174,8 @@ async function onScanSuccess(decodedText) {
 
   if (!studentId || !name) {
     alert("Invalid QR code format!");
+    // Restart scanner if invalid QR
+    setTimeout(startScanner, 1000);
     return;
   }
 
@@ -177,27 +189,25 @@ async function onScanSuccess(decodedText) {
 
     if (querySnapshot.empty) {
       await addDoc(scansRef, { studentId, name, section, date: today, inTime: phTime, outTime: "" });
-      resultDiv.innerText = `✅ In time recorded for ${name}`;
+      resultDiv.innerText = ` In time recorded for ${name}`;
     } else {
       const docRef = querySnapshot.docs[0].ref;
       const existingData = querySnapshot.docs[0].data();
 
       if (!existingData.outTime) {
         await updateDoc(docRef, { outTime: phTime });
-        resultDiv.innerText = `✅ Out time recorded for ${name}`;
+        resultDiv.innerText = ` Out time recorded for ${name}`;
       } else {
-        resultDiv.innerText = `⚠️ ${name} already logged out today.`;
+        resultDiv.innerText = ` ${name} already logged out today.`;
       }
     }
   } catch (err) {
     console.error("Firestore error:", err);
-    resultDiv.innerText = "❌ Error saving attendance. Check your internet connection.";
+    resultDiv.innerText = "Error saving attendance. Check your internet connection.";
   }
 
-  // ✅ stop scanner safely
-  if (html5QrcodeScanner) {
-    try { await html5QrcodeScanner.clear(); } catch (e) {}
-  }
+  // Restart scanner after 2 seconds to allow for next scan
+  setTimeout(startScanner, 2000);
 }
 
 function onScanFailure(error) {
