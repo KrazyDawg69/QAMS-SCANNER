@@ -245,7 +245,7 @@
 
   <div class="empty" id="empty-msg" style="display:none;">No records found.</div>
 
-  <script type="module">
+    <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 import { 
   getFirestore, collection, getDocs, deleteDoc, doc, updateDoc 
@@ -263,19 +263,28 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+const students = [
+  "ABONITA, ALFREDO JR. CELESTE", "ALAYON DANIEL CHRISTIAN MANANSALA", "ALVENDO, REDEN ROLDAN",
+  "ARENDAIN, KENNETH", "BENEDICTO, ANDREI AMANCHO", "CASAN, HIZAM MUA", "FELICIANO, CLARENCE LANDRITO",
+  "GERONGA, RAILEY JANTZEN", "GUIRUELA, JOHN LESTER CASYAO", "GARCISCO SYMONE", "LEONOR, LAWRENCE RALPH",
+  "MANGORA, JOHARY NUSKA", "MANILA, DENNIES JOB", "MARTIRES, BENEDICT NOEL DEJAN",
+  "MINDALANO, ABDUL JAMIL CABUDSAN", "OLPOT, EDDIESON", "RIANIAS, RONNEL JR. ORTEGA",
+  "SENCIL, RALPH IAN E", "TRINIDAD, TJ GENIL", "TUMBAGA, CARL ISAIAH DALINO", "VARONA, JOHN BRIX",
+  "CUBIO, ELEANORA MARIE DELA CRUZ", "EUGENIO, DRIZTAL", "IGNACIO, LADY JANE",
+  "OBONG, ALTHEA DELA CRUZ", "SANTOS, SOSSY GOLDIE ANN SALARDA", "VILLACORTA, JEZLY MAE MADRONIO"
+];
+
 const container = document.getElementById("records-container");
 const emptyMsg = document.getElementById("empty-msg");
 const searchBox = document.getElementById("search-box");
 
 let grouped = {};
 
-// ⏰ Function to compute attendance status
 function getStatus(inTime, outTime) {
-  if (!inTime) return "Absent";
+  if (!inTime) return "Not Yet Scanned";
 
-  // Parse the time part
   const timePart = inTime.split(",")[1]?.trim();
-  if (!timePart) return "Absent";
+  if (!timePart) return "Not Yet Scanned";
 
   const now = new Date();
   const [time, modifier] = timePart.split(" ");
@@ -285,46 +294,57 @@ function getStatus(inTime, outTime) {
   if (modifier === "AM" && hours === 12) hours = 0;
 
   const checkIn = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
-
-  // Class schedule
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 0);
   const lateThreshold = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 10);
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 11, 45);
 
-  let status = "Absent";
+  let status = "Not Yet Scanned";
 
   if (checkIn <= lateThreshold) status = "Present";
   else if (checkIn > lateThreshold && checkIn <= end) status = "Late";
   else status = "Absent";
 
-  // If they never scanned out
-  if (!outTime && status !== "Absent") status += " (No Out)";
-
+  if (!outTime && status !== "Not Yet Scanned") status += " (No Out)";
   return status;
 }
 
-// 🧠 Load all records (fixed version)
 async function loadRecords() {
   const querySnapshot = await getDocs(collection(db, "scans"));
   grouped = {};
 
   for (const docSnap of querySnapshot.docs) {
     const data = docSnap.data();
-    const dateKey = (data.date || data.inTime?.split(",")[0] || "Unknown Date").trim();
+    const dateKey = data.date || data.inTime?.split(",")[0] || "Unknown Date";
     const status = getStatus(data.inTime, data.outTime);
 
     if (data.status !== status) {
       await updateDoc(doc(db, "scans", docSnap.id), { status });
     }
 
-    if (!grouped[dateKey]) grouped[dateKey] = [];
-    grouped[dateKey].push({ id: docSnap.id, ...data, status });
+    if (!grouped[dateKey]) grouped[dateKey] = {};
+    grouped[dateKey][data.name?.toUpperCase()] = { id: docSnap.id, ...data, status };
   }
+
+  // Include all students
+  Object.keys(grouped).forEach(date => {
+    students.forEach(name => {
+      if (!grouped[date][name]) {
+        grouped[date][name] = {
+          studentId: "—",
+          name,
+          section: "CP-12-BILL GATES",
+          date,
+          inTime: "",
+          outTime: "",
+          status: "Not Yet Scanned"
+        };
+      }
+    });
+  });
 
   displayRecords(Object.keys(grouped));
 }
 
-// 🎨 Display folders and records
 function displayRecords(dateKeys) {
   container.innerHTML = "";
   if (dateKeys.length === 0) {
@@ -352,21 +372,21 @@ function displayRecords(dateKeys) {
     const menu = document.createElement("div");
     menu.className = "menu";
 
-    // Export CSV
     const exportBtn = document.createElement("button");
     exportBtn.textContent = " Export CSV";
     exportBtn.onclick = (e) => {
       e.stopPropagation();
-      exportToCSV(grouped[date], date);
+      exportToCSV(Object.values(grouped[date]), date);
     };
 
-    // Delete folder
     const delBtn = document.createElement("button");
     delBtn.textContent = " Delete Folder";
     delBtn.onclick = async (e) => {
       e.stopPropagation();
       if (confirm(`Delete all records for ${date}?`)) {
-        await Promise.all(grouped[date].map(r => deleteDoc(doc(db, "scans", r.id))));
+        await Promise.all(Object.values(grouped[date])
+          .filter(r => r.id)
+          .map(r => deleteDoc(doc(db, "scans", r.id))));
         alert(`Deleted all records for ${date}`);
         location.reload();
       }
@@ -390,7 +410,6 @@ function displayRecords(dateKeys) {
     const recordList = document.createElement("div");
     recordList.className = "record-list";
 
-    // 🔍 Search inside folder
     const recordSearch = document.createElement("input");
     recordSearch.type = "text";
     recordSearch.className = "record-search";
@@ -405,44 +424,79 @@ function displayRecords(dateKeys) {
       records.forEach(r => {
         const div = document.createElement("div");
         div.className = "record";
+
+        let statusColor = "#9e9e9e";
+        if (r.status.includes("Present")) statusColor = "#43a047";
+        else if (r.status.includes("Late")) statusColor = "#fb8c00";
+        else if (r.status.includes("Absent")) statusColor = "#e53935";
+
         div.innerHTML = `
           <strong>${r.name}</strong><br>
-          ID: ${r.studentId}<br>
+          ID: ${r.studentId || "—"}<br>
           Section: ${r.section || "N/A"}<br>
           In: ${r.inTime || "—"}<br>
           Out: ${r.outTime || "—"}<br>
-          <b>Status:</b> ${r.status || "Absent"}
+          <b>Status:</b> <span style="background:${statusColor};color:white;padding:3px 8px;border-radius:6px;">${r.status}</span>
         `;
-        
-        // Create button container
-        const buttonContainer = document.createElement("div");
-        buttonContainer.className = "record-buttons";
-        
-        // Edit button
-        const editBtn = document.createElement("button");
-        editBtn.className = "edit-btn";
-        editBtn.textContent = "Edit";
-        editBtn.onclick = () => openEditForm(r, date);
-        
-        // Delete button
-        const deleteBtn = document.createElement("button");
-        deleteBtn.className = "delete-btn";
-        deleteBtn.textContent = "Delete";
-        deleteBtn.onclick = () => deleteIndividualRecord(r, date);
-        
-        buttonContainer.appendChild(editBtn);
-        buttonContainer.appendChild(deleteBtn);
-        div.appendChild(buttonContainer);
-        
+
+        const buttons = document.createElement("div");
+        buttons.className = "record-buttons";
+
+        // 🗑️ Delete Button
+        if (r.id) {
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "delete-btn";
+          deleteBtn.textContent = "Delete";
+          deleteBtn.onclick = async () => {
+            if (confirm(`Delete record for ${r.name}?`)) {
+              await deleteDoc(doc(db, "scans", r.id));
+              alert("Record deleted successfully!");
+              loadRecords();
+            }
+          };
+          buttons.appendChild(deleteBtn);
+        }
+
+        // ✏️ Edit Button
+        if (r.id) {
+          const editBtn = document.createElement("button");
+          editBtn.className = "edit-btn";
+          editBtn.textContent = "Edit";
+          editBtn.onclick = async () => {
+            const newId = prompt("Edit Student ID:", r.studentId);
+            const newName = prompt("Edit Name:", r.name);
+            const newSection = prompt("Edit Section:", r.section);
+            const newIn = prompt("Edit Time In:", r.inTime);
+            const newOut = prompt("Edit Time Out:", r.outTime);
+
+            if (newId !== null && newName !== null) {
+              const newStatus = getStatus(newIn, newOut);
+              await updateDoc(doc(db, "scans", r.id), {
+                studentId: newId,
+                name: newName,
+                section: newSection,
+                inTime: newIn,
+                outTime: newOut,
+                status: newStatus
+              });
+              alert("Record updated successfully!");
+              loadRecords();
+            }
+          };
+          buttons.appendChild(editBtn);
+        }
+
+        div.appendChild(buttons);
         recordsContainer.appendChild(div);
       });
     }
 
-    showRecords(grouped[date]);
+    const allRecords = Object.values(grouped[date]);
+    showRecords(allRecords);
 
     recordSearch.addEventListener("input", () => {
       const q = recordSearch.value.toLowerCase();
-      const filtered = grouped[date].filter(r =>
+      const filtered = allRecords.filter(r =>
         (r.name?.toLowerCase().includes(q) || r.studentId?.toLowerCase().includes(q))
       );
       showRecords(filtered);
@@ -458,60 +512,26 @@ function displayRecords(dateKeys) {
   });
 }
 
-// 🗑️ Delete individual record
-async function deleteIndividualRecord(record, date) {
-  const studentName = record.name || "this student";
-  if (confirm(`Are you sure you want to delete the record for ${studentName}?`)) {
-    try {
-      await deleteDoc(doc(db, "scans", record.id));
-      alert(`Record for ${studentName} deleted successfully!`);
-      loadRecords(); // Reload to refresh the display
-    } catch (error) {
-      console.error("Error deleting record:", error);
-      alert("Error deleting record. Please try again.");
-    }
-  }
-}
-
-// 🧾 CSV export with new format: Name, Section, Time In, Time Out, Status
 function exportToCSV(records, date) {
   const csvRows = [];
-  // New header format
-  const headers = ["Name", "Section", "Time In", "Time Out", "Status"];
+  const headers = ["Student ID", "Name", "Section", "Date", "In Time", "Out Time", "Status"];
   csvRows.push(headers.join(","));
-  
   records.forEach(r => {
-    // Extract only the time part from the full datetime string
-    const extractTime = (datetime) => {
-      if (!datetime) return "";
-      try {
-        // Split by comma and take the time part (after the date)
-        const parts = datetime.split(",");
-        if (parts.length > 1) {
-          return parts[1].trim();
-        }
-        return datetime;
-      } catch {
-        return datetime || "";
-      }
-    };
-
     const row = [
+      `"${r.studentId}"`,
       `"${r.name}"`,
-      `"${r.section || ''}"`,
-      `"${extractTime(r.inTime)}"`,
-      `"${extractTime(r.outTime)}"`,
-      `"${r.status || getStatus(r.inTime, r.outTime)}"`
+      `"${r.section}"`,
+      `"${r.date}"`,
+      `"${r.inTime}"`,
+      `"${r.outTime}"`,
+      `"${r.status}"`
     ];
     csvRows.push(row.join(","));
   });
-  
   const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
-  const fileName = `QAMS_${date}.csv`;
-  saveAs(blob, fileName);
+  saveAs(blob, `QAMS_${date}.csv`);
 }
 
-// 🗓️ Calendar search
 searchBox.addEventListener("change", () => {
   const selectedDate = searchBox.value;
   if (!selectedDate) {
@@ -526,75 +546,7 @@ document.addEventListener("click", () => {
   document.querySelectorAll(".menu").forEach(m => m.style.display = "none");
 });
 
-// ✏️ Edit form popup
-function openEditForm(record, date) {
-  const parseDateTime = (value) => {
-    if (!value) return "";
-    try {
-      const dateObj = new Date(value);
-      if (isNaN(dateObj)) return "";
-      return dateObj.toISOString().slice(0, 16);
-    } catch {
-      return "";
-    }
-  };
-
-  const inTimeValue = parseDateTime(record.inTime);
-  const outTimeValue = parseDateTime(record.outTime);
-
-  const popup = document.createElement("div");
-  popup.style.cssText = `
-    position:fixed;top:0;left:0;width:100%;height:100%;
-    background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;
-    z-index:9999;
-  `;
-  popup.innerHTML = `
-    <div style="background:white;padding:20px 25px;border-radius:12px;max-width:380px;width:90%;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
-      <h3 style="color:#2e7d32;margin-bottom:10px;">Edit Record</h3>
-      <label>Name:</label>
-      <input id="editName" value="${record.name}" style="width:100%;margin-bottom:8px;padding:6px;border:1px solid #ccc;border-radius:8px;"><br>
-      <label>Section:</label>
-      <input id="editSection" value="${record.section}" style="width:100%;margin-bottom:8px;padding:6px;border:1px solid #ccc;border-radius:8px;"><br>
-      <label>In Time:</label>
-      <input type="datetime-local" id="editIn" value="${inTimeValue}" style="width:100%;margin-bottom:8px;padding:6px;border:1px solid #ccc;border-radius:8px;"><br>
-      <label>Out Time:</label>
-      <input type="datetime-local" id="editOut" value="${outTimeValue}" style="width:100%;margin-bottom:8px;padding:6px;border:1px solid #ccc;border-radius:8px;"><br>
-      <div style="display:flex;justify-content:space-between;margin-top:10px;">
-        <button id="saveEdit" style="padding:8px 14px;background:#66bb6a;color:white;border:none;border-radius:8px;cursor:pointer;">Save</button>
-        <button id="cancelEdit" style="padding:8px 14px;background:#e53935;color:white;border:none;border-radius:8px;cursor:pointer;">Cancel</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(popup);
-
-  popup.querySelector("#cancelEdit").onclick = () => popup.remove();
-
-  popup.querySelector("#saveEdit").onclick = async () => {
-    const inInput = popup.querySelector("#editIn").value;
-    const outInput = popup.querySelector("#editOut").value;
-
-    const toReadableTime = (datetime) => {
-      if (!datetime) return "";
-      return new Date(datetime).toLocaleString("en-PH", { timeZone: "Asia/Manila" });
-    };
-
-    const updated = {
-      name: popup.querySelector("#editName").value.trim(),
-      section: popup.querySelector("#editSection").value.trim(),
-      inTime: toReadableTime(inInput),
-      outTime: toReadableTime(outInput),
-    };
-
-    updated.status = getStatus(updated.inTime, updated.outTime);
-
-    await updateDoc(doc(db, "scans", record.id), updated);
-    alert(" Record updated successfully!");
-    popup.remove();
-    loadRecords();
-  };
-}
-
 loadRecords();
-</script>
+</script>     
 </body>
 </html>
