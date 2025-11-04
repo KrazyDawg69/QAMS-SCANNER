@@ -151,9 +151,46 @@
       font-size: 0.95em;
       color: #33691e;
       line-height: 1.5;
+      position: relative;
     }
 
     .record strong { color: #1b5e20; font-size: 1em; }
+
+    .record-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .edit-btn {
+      padding: 6px 12px;
+      background: #81c784;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-size: 0.85em;
+      transition: background-color 0.3s ease;
+    }
+
+    .edit-btn:hover {
+      background: #66bb6a;
+    }
+
+    .delete-btn {
+      padding: 6px 12px;
+      background: #ef5350;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-size: 0.85em;
+      transition: background-color 0.3s ease;
+    }
+
+    .delete-btn:hover {
+      background: #e53935;
+    }
 
     .logout-btn {
       margin-top: 30px;
@@ -184,6 +221,14 @@
       .record { font-size: 0.9em; }
       .date-header { padding: 16px; }
       .date-text { font-size: 1em; }
+      .record-buttons {
+        flex-direction: column;
+        gap: 5px;
+      }
+      .edit-btn, .delete-btn {
+        padding: 8px 12px;
+        font-size: 0.8em;
+      }
     }
   </style>
 </head>
@@ -257,6 +302,7 @@ function getStatus(inTime, outTime) {
 
   return status;
 }
+
 // 🧠 Load all records (fixed version)
 async function loadRecords() {
   const querySnapshot = await getDocs(collection(db, "scans"));
@@ -365,11 +411,29 @@ function displayRecords(dateKeys) {
           Section: ${r.section || "N/A"}<br>
           In: ${r.inTime || "—"}<br>
           Out: ${r.outTime || "—"}<br>
-          <b>Status:</b> ${r.status || "Absent"}<br>
-          <button style="margin-top:8px;padding:5px 10px;background:#81c784;border:none;border-radius:8px;color:white;cursor:pointer;">Edit</button>
+          <b>Status:</b> ${r.status || "Absent"}
         `;
-        const editBtn = div.querySelector("button");
+        
+        // Create button container
+        const buttonContainer = document.createElement("div");
+        buttonContainer.className = "record-buttons";
+        
+        // Edit button
+        const editBtn = document.createElement("button");
+        editBtn.className = "edit-btn";
+        editBtn.textContent = "Edit";
         editBtn.onclick = () => openEditForm(r, date);
+        
+        // Delete button
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "delete-btn";
+        deleteBtn.textContent = "Delete";
+        deleteBtn.onclick = () => deleteIndividualRecord(r, date);
+        
+        buttonContainer.appendChild(editBtn);
+        buttonContainer.appendChild(deleteBtn);
+        div.appendChild(buttonContainer);
+        
         recordsContainer.appendChild(div);
       });
     }
@@ -394,23 +458,54 @@ function displayRecords(dateKeys) {
   });
 }
 
-// 🧾 CSV export (now includes Status)
+// 🗑️ Delete individual record
+async function deleteIndividualRecord(record, date) {
+  const studentName = record.name || "this student";
+  if (confirm(`Are you sure you want to delete the record for ${studentName}?`)) {
+    try {
+      await deleteDoc(doc(db, "scans", record.id));
+      alert(`Record for ${studentName} deleted successfully!`);
+      loadRecords(); // Reload to refresh the display
+    } catch (error) {
+      console.error("Error deleting record:", error);
+      alert("Error deleting record. Please try again.");
+    }
+  }
+}
+
+// 🧾 CSV export with new format: Name, Section, Time In, Time Out, Status
 function exportToCSV(records, date) {
   const csvRows = [];
-  const headers = ["Student ID", "Name", "Section", "Date", "In Time", "Out Time", "Status"];
+  // New header format
+  const headers = ["Name", "Section", "Time In", "Time Out", "Status"];
   csvRows.push(headers.join(","));
+  
   records.forEach(r => {
+    // Extract only the time part from the full datetime string
+    const extractTime = (datetime) => {
+      if (!datetime) return "";
+      try {
+        // Split by comma and take the time part (after the date)
+        const parts = datetime.split(",");
+        if (parts.length > 1) {
+          return parts[1].trim();
+        }
+        return datetime;
+      } catch {
+        return datetime || "";
+      }
+    };
+
     const row = [
-      `"${r.studentId}"`,
       `"${r.name}"`,
       `"${r.section || ''}"`,
-      `"${r.date}"`,
-      `"${r.inTime || ''}"`,
-      `"${r.outTime || ''}"`,
+      `"${extractTime(r.inTime)}"`,
+      `"${extractTime(r.outTime)}"`,
       `"${r.status || getStatus(r.inTime, r.outTime)}"`
     ];
     csvRows.push(row.join(","));
   });
+  
   const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
   const fileName = `QAMS_${date}.csv`;
   saveAs(blob, fileName);
