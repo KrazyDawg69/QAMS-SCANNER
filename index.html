@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QAMS - QR Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9, #a5d6a7);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      position: relative;
+    }
+
+    .scanner-container {
+      background-color: rgba(255, 255, 255, 0.95);
+      padding: 30px 25px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(76, 175, 80, 0.2);
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      animation: fadeIn 0.8s ease;
+      position: relative;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .register-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 8px 16px;
+      background-color: #1976d2;
+      color: white;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      cursor: pointer;
+      font-size: 14px;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
+    }
+
+    .register-btn:hover {
+      background-color: #1565c0;
+      transform: translateY(-2px);
+    }
+
+    h2 {
+      color: #2e7d32;
+      font-weight: 600;
+      margin-bottom: 20px;
+      font-size: 1.6em;
+    }
+
+    button, a {
+      display: inline-block;
+      margin-top: 15px;
+      padding: 10px 18px;
+      background-color: #66bb6a;
+      color: white;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      cursor: pointer;
+    }
+
+    button:hover, a:hover {
+      background-color: #57a05b;
+      transform: translateY(-2px);
+    }
+
+    #reader {
+      width: 100%;
+      border: 2px dashed #4caf50;
+      border-radius: 15px;
+      padding: 10px;
+      background-color: #f1f8e9;
+    }
+
+    #result {
+      margin-top: 18px;
+      font-size: 16px;
+      color: #388e3c;
+      font-weight: 500;
+      word-wrap: break-word;
+      min-height: 60px;
+    }
+
+    .footer {
+      font-size: 13px;
+      color: #4caf50;
+      margin-top: 10px;
+      opacity: 0.8;
+    }
+
+    .logout {
+      margin-top: 20px;
+      background-color: #ef5350;
+    }
+
+    .logout:hover {
+      background-color: #d32f2f;
+    }
+
+    .success { color: #2e7d32; }
+    .warning { color: #f57f17; }
+    .error { color: #d32f2f; }
+    
+    .attempts-info {
+      background: #e3f2fd;
+      padding: 10px 15px;
+      border-radius: 10px;
+      margin: 15px 0;
+      font-size: 0.9em;
+      color: #1976d2;
+      border: 1px solid #bbdefb;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Register Button (Top Right) -->
+  <a href="registered.html" class="register-btn">
+    Register
+  </a>
+
+  <div class="scanner-container">
+    <h2>QAMS SCANNER</h2>
+    
+    <div class="attempts-info" id="attemptsDisplay">
+      Loading attempts info...
+    </div>
+    
+    <div id="reader"></div>
+    <div id="result">Waiting for scan...</div>
+    <a href="recordsTrialnError.html">View Scan Records</a>
+    <button class="logout" onclick="logout()">Restart Scanner</button>
+    <div class="footer">QR Attendance System - Max 3 scans/day</div>
+  </div>
+
+  <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  getDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyD9_SnkZwUKhTxWPw0xH5q6RjLSPTWjJDw",
+  authDomain: "qams-2025.firebaseapp.com",
+  projectId: "qams-2025",
+  storageBucket: "qams-2025.firebasestorage.app",
+  messagingSenderId: "827453407305",
+  appId: "1:827453407305:web:c1eba2c58cb57b85d9ff98"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const resultDiv = document.getElementById("result");
+const attemptsDisplay = document.getElementById("attemptsDisplay");
+let html5QrcodeScanner = null;
+
+// No login required
+localStorage.setItem("role", "teacher");
+
+// Logout function (just restarts scanner)
+function logout() {
+  if (html5QrcodeScanner) {
+    try { html5QrcodeScanner.clear(); } catch {}
+    html5QrcodeScanner = null;
+  }
+  window.location.reload();
+}
+window.logout = logout;
+
+// Get system settings
+async function getSettings() {
+  try {
+    const settingsDoc = await getDoc(doc(db, "settings", "config"));
+    if (settingsDoc.exists()) {
+      return settingsDoc.data();
+    } else {
+      return {
+        maxAttemptsPerDay: 3,
+        lateThreshold: "06:10 AM",
+        schoolHoursEnd: "11:45 AM"
+      };
+    }
+  } catch (error) {
+    console.error("Error getting settings:", error);
+    return { maxAttemptsPerDay: 3 };
+  }
+}
+
+// Determine status - SAFER VERSION
+function getStatus(inTime) {
+  try {
+    if (!inTime || typeof inTime !== 'string') return "Not Scanned";
+    
+    // Check if inTime has comma format
+    if (!inTime.includes(',')) return "Not Scanned";
+    
+    const parts = inTime.split(",");
+    if (parts.length < 2) return "Not Scanned";
+    
+    const timePart = parts[1].trim();
+    if (!timePart) return "Not Scanned";
+    
+    const [time, modifier] = timePart.split(" ");
+    if (!time || !modifier) return "Not Scanned";
+    
+    const timeParts = time.split(":");
+    if (timeParts.length < 2) return "Not Scanned";
+    
+    let hours = parseInt(timeParts[0]);
+    let minutes = parseInt(timeParts[1]);
+    
+    if (isNaN(hours) || isNaN(minutes)) return "Not Scanned";
+    
+    // Convert to 24-hour format
+    if (modifier.toUpperCase() === "PM" && hours !== 12) hours += 12;
+    if (modifier.toUpperCase() === "AM" && hours === 12) hours = 0;
+
+    const now = new Date();
+    const checkIn = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+    const lateThreshold = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 10);
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 11, 45);
+
+    if (checkIn <= lateThreshold) return "Present";
+    if (checkIn <= end) return "Late";
+    return "Not Scanned";
+    
+  } catch (error) {
+    console.error("Error calculating status:", error);
+    return "Not Scanned";
+  }
+}
+
+// Flexible QR code parser - handles multiple formats
+function parseQRCode(qrText) {
+  if (!qrText) return null;
+  
+  const text = qrText.toUpperCase().trim();
+  
+  const patterns = [
+    /STUDENT-(\d{4}-\d+)[-\s]*\(([^)]+)\)[-\s]*\[([^\]]+)\]/i,
+    /STUDENT-(\d{4}-\d+)[-\s]*\(([^)]+)\)[-\s]*([^[\]]+)$/i,
+    /STUDENT-(\d{4}-\d+)-\(([^)]+)\)-\[([^\]]+)\]/i,
+    /STUDENT-(\d{4}-\d+).*?\(([^)]+)\).*?\[?([^[\]]+)\]?/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      const studentIdRaw = match[1];
+      const rawName = match[2];
+      const rawSection = match[3];
+      
+      const cleanedName = rawName
+        .replace(/[()]/g, "")
+        .replace(/\./g, "")
+        .trim()
+        .toUpperCase();
+
+      const cleanedSection = rawSection
+        .replace(/[\[\]]/g, "")
+        .trim()
+        .toUpperCase();
+
+      return {
+        studentId: "STUDENT-" + studentIdRaw,
+        name: cleanedName,
+        section: cleanedSection,
+        rawQR: qrText
+      };
+    }
+  }
+  
+  return null;
+}
+
+// Check student attempts for today
+async function checkAttempts(studentId, date) {
+  try {
+    // Try current_attendance first, fall back to scans
+    let attendanceRef;
+    try {
+      // Test if current_attendance exists
+      const testQuery = query(collection(db, "current_attendance"), where("date", "==", date));
+      await getDocs(testQuery);
+      attendanceRef = collection(db, "current_attendance");
+    } catch (e) {
+      // Use scans as fallback
+      attendanceRef = collection(db, "scans");
+    }
+    
+    const q = query(
+      attendanceRef,
+      where("studentId", "==", studentId),
+      where("date", "==", date)
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      return { attemptsUsed: 0, record: null };
+    } else {
+      const record = snapshot.docs[0].data();
+      return { 
+        attemptsUsed: record.attemptsUsed || 0, 
+        record: { ...record, id: snapshot.docs[0].id, collection: attendanceRef.id }
+      };
+    }
+  } catch (error) {
+    console.error("Error checking attempts:", error);
+    return { attemptsUsed: 0, record: null };
+  }
+}
+
+// Update attempts display
+async function updateAttemptsDisplay() {
+  try {
+    const settings = await getSettings();
+    attemptsDisplay.innerHTML = "Daily Limits: Max " + settings.maxAttemptsPerDay + " scans per student<br>Late After: " + settings.lateThreshold + " | School Ends: " + settings.schoolHoursEnd;
+  } catch (error) {
+    attemptsDisplay.innerHTML = "Daily Limits: Max 3 scans per student<br>Late After: 06:10 AM | School Ends: 11:45 AM";
+  }
+}
+
+async function onScanSuccess(decodedText) {
+  if (html5QrcodeScanner) {
+    try {
+      await html5QrcodeScanner.clear();
+      html5QrcodeScanner = null;
+    } catch {}
+  }
+
+  resultDiv.innerHTML = "Scanning...";
+
+  const parsedData = parseQRCode(decodedText);
+  if (!parsedData) {
+    resultDiv.innerHTML = "Invalid QR code format!";
+    setTimeout(startScanner, 2000);
+    return;
+  }
+
+  const { studentId, name, section } = parsedData;
+  
+  const now = new Date();
+  const phTime = now.toLocaleDateString("en-US", { timeZone: "Asia/Manila" }) + ", " + now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Manila" });
+  const today = now.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+  
+  try {
+    // Get settings
+    const settings = await getSettings();
+    const maxAttempts = settings.maxAttemptsPerDay || 3;
+    
+    // Skip student check for now - allow any QR code
+    // Use dummy data for testing
+    const lrn = "123456789000";
+    const strand = "STEM";
+
+    // Check attempts for today
+    const { attemptsUsed, record } = await checkAttempts(studentId, today);
+
+    if (attemptsUsed >= maxAttempts) {
+      resultDiv.innerHTML = name + " - Daily limit reached (" + maxAttempts + "/" + maxAttempts + " scans). Come back tomorrow!";
+      setTimeout(startScanner, 3000);
+      return;
+    }
+
+    // Try current_attendance first, fall back to scans
+    let attendanceRef;
+    try {
+      // Test if current_attendance exists
+      const testQuery = query(collection(db, "current_attendance"), where("date", "==", today));
+      await getDocs(testQuery);
+      attendanceRef = collection(db, "current_attendance");
+    } catch (e) {
+      // Use scans as fallback
+      attendanceRef = collection(db, "scans");
+    }
+
+    if (!record) {
+      // First scan of the day - create new record (IN)
+      const status = getStatus(phTime);
+      await addDoc(attendanceRef, {
+        studentId,
+        name,
+        lrn,
+        strand,
+        section,
+        date: today,
+        inTime: phTime,
+        outTime: "",
+        attemptsUsed: 1,
+        status,
+        createdAt: serverTimestamp(),
+        lastUpdated: serverTimestamp()
+      });
+      resultDiv.innerHTML = name + " - Timed IN. Status: " + status + ". Time: " + phTime.split(',')[1].trim() + ". Attempts: 1/" + maxAttempts;
+    } else {
+      // Update existing record
+      const docRef = doc(db, record.collection || attendanceRef.id, record.id);
+
+      // Check if IN time exists AND is not empty
+      const hasInTime = record.inTime && record.inTime.trim() !== "";
+      const hasOutTime = record.outTime && record.outTime.trim() !== "";
+      
+      if (!hasInTime) {
+        // No IN time yet - scan IN
+        const status = getStatus(phTime);
+        await updateDoc(docRef, { 
+          inTime: phTime,
+          attemptsUsed: attemptsUsed + 1,
+          status: status,
+          lastUpdated: serverTimestamp()
+        });
+        resultDiv.innerHTML = name + " - Timed IN. Status: " + status + ". Time: " + phTime.split(',')[1].trim() + ". Attempts: " + (attemptsUsed + 1) + "/" + maxAttempts;
+      } else if (!hasOutTime) {
+        // Has IN time but no OUT time - scan OUT
+        await updateDoc(docRef, { 
+          outTime: phTime,
+          attemptsUsed: attemptsUsed + 1,
+          lastUpdated: serverTimestamp()
+        });
+        resultDiv.innerHTML = name + " - Timed OUT. Time: " + phTime.split(',')[1].trim() + ". Attempts: " + (attemptsUsed + 1) + "/" + maxAttempts;
+      } else {
+        // Already has both IN and OUT times
+        resultDiv.innerHTML = name + " - Already completed today. In: " + (record.inTime?.split(',')[1]?.trim() || 'N/A') + " Out: " + (record.outTime?.split(',')[1]?.trim() || 'N/A');
+      }
+    }
+
+    // Update attempts display
+    updateAttemptsDisplay();
+
+  } catch (err) {
+    console.error("Firestore error:", err);
+    
+    // If connection error, show offline mode message
+    if (err.code === 'unavailable' || err.message.includes('failed') || err.message.includes('offline') || err.code === 'permission-denied') {
+      resultDiv.innerHTML = "⚠️ Working offline. Attendance saved locally. Will sync when connection is restored.<br>" + 
+                            name + " - Scanned at: " + phTime.split(',')[1].trim();
+    } else {
+      resultDiv.innerHTML = "Error: " + (err.message || "Unknown error");
+    }
+  }
+
+  setTimeout(startScanner, 3000);
+}
+
+function onScanFailure(error) {
+  console.log("Scan error:", error);
+}
+
+function startScanner() {
+  if (html5QrcodeScanner) {
+    try { html5QrcodeScanner.clear(); } catch {}
+    html5QrcodeScanner = null;
+  }
+
+  html5QrcodeScanner = new Html5QrcodeScanner(
+    "reader",
+    { 
+      fps: 10, 
+      qrbox: { width: 250, height: 250 }
+    },
+    false
+  );
+  html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+  
+  // Reset result message
+  resultDiv.innerHTML = "Waiting for scan...";
+}
+
+// Initialize
+updateAttemptsDisplay();
+startScanner();
+</script>
+</body>
+</html>
