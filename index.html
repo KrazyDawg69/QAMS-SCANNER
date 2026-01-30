@@ -6,7 +6,7 @@
   <title>QAMS - QR Scanner</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -86,6 +86,45 @@
       background-color: #57a05b;
       transform: translateY(-2px);
     }
+    
+    /* File upload button styling */
+.file-upload-btn {
+  display: inline-block;
+  margin: 10px 5px;
+  padding: 10px 15px;
+  background-color: #2196f3;
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.file-upload-btn:hover {
+  background-color: #1976d2;
+  transform: translateY(-2px);
+}
+
+.file-upload-btn i {
+  margin-right: 8px;
+}
+
+#file-input {
+  display: none;
+}
+
+.file-upload-label {
+  cursor: pointer;
+}
+
+.upload-info {
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+}
 
     #reader {
       width: 100%;
@@ -102,6 +141,7 @@
       font-weight: 500;
       word-wrap: break-word;
       min-height: 60px;
+      line-height: 1.4;
     }
 
     .footer {
@@ -133,6 +173,17 @@
       color: #1976d2;
       border: 1px solid #bbdefb;
     }
+    
+    .scan-status {
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin: 5px 0;
+      font-weight: 500;
+    }
+    
+    .status-present { background-color: #e8f5e9; color: #2e7d32; }
+    .status-late { background-color: #fff3e0; color: #f57f17; }
+    .status-not-scanned { background-color: #f5f5f5; color: #757575; }
   </style>
 </head>
 <body>
@@ -150,6 +201,14 @@
     </div>
     
     <div id="reader"></div>
+    <!-- File Upload for QR Scanning -->
+<div style="margin: 15px 0;">
+  <input type="file" id="file-input" accept="image/*">
+  <label for="file-input" class="file-upload-btn file-upload-label">
+    <i class="fas fa-upload"></i> Upload QR Image
+  </label>
+  <div class="upload-info">Supported formats: JPG, PNG, GIF, BMP</div>
+</div>
     <div id="result">Waiting for scan...</div>
     <a href="recordsTrialnError.html">View Scan Records</a>
     <button class="logout" onclick="logout()">Restart Scanner</button>
@@ -168,7 +227,8 @@ import {
   updateDoc,
   doc,
   getDoc,
-  serverTimestamp
+  serverTimestamp,
+  setDoc
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
 // Firebase configuration
@@ -219,43 +279,64 @@ async function getSettings() {
   }
 }
 
-// Determine status - SAFER VERSION
+// Check if student is registered
+async function checkStudentRegistration(studentId) {
+  try {
+    const studentsRef = collection(db, "students");
+    const q = query(studentsRef, where("studentId", "==", studentId));
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+      const studentDoc = querySnapshot.docs[0];
+      return {
+        exists: true,
+        data: studentDoc.data(),
+        docId: studentDoc.id
+      };
+    }
+    return { exists: false, data: null, docId: null };
+  } catch (error) {
+    console.error("Error checking student registration:", error);
+    return { exists: false, data: null, docId: null };
+  }
+}
+
+// Determine status - IMPROVED VERSION
 function getStatus(inTime) {
   try {
-    if (!inTime || typeof inTime !== 'string') return "Not Scanned";
+    if (!inTime || typeof inTime !== 'string' || !inTime.includes(',')) {
+      return "Not Scanned";
+    }
     
-    // Check if inTime has comma format
-    if (!inTime.includes(',')) return "Not Scanned";
-    
-    const parts = inTime.split(",");
-    if (parts.length < 2) return "Not Scanned";
-    
-    const timePart = parts[1].trim();
+    // Extract time part (e.g., "12/25/2024, 06:05 AM")
+    const timePart = inTime.split(",")[1]?.trim();
     if (!timePart) return "Not Scanned";
     
     const [time, modifier] = timePart.split(" ");
     if (!time || !modifier) return "Not Scanned";
     
-    const timeParts = time.split(":");
-    if (timeParts.length < 2) return "Not Scanned";
-    
-    let hours = parseInt(timeParts[0]);
-    let minutes = parseInt(timeParts[1]);
+    const [hoursStr, minutesStr] = time.split(":");
+    const hours = parseInt(hoursStr);
+    const minutes = parseInt(minutesStr);
     
     if (isNaN(hours) || isNaN(minutes)) return "Not Scanned";
     
     // Convert to 24-hour format
-    if (modifier.toUpperCase() === "PM" && hours !== 12) hours += 12;
-    if (modifier.toUpperCase() === "AM" && hours === 12) hours = 0;
-
-    const now = new Date();
-    const checkIn = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
-    const lateThreshold = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 10);
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 11, 45);
-
-    if (checkIn <= lateThreshold) return "Present";
-    if (checkIn <= end) return "Late";
-    return "Not Scanned";
+    let hour24 = hours;
+    if (modifier.toUpperCase() === "PM" && hours !== 12) hour24 += 12;
+    if (modifier.toUpperCase() === "AM" && hours === 12) hour24 = 0;
+    
+    // Check if time is within school hours (before 11:45 AM)
+    if (hour24 > 11 || (hour24 === 11 && minutes > 45)) {
+      return "Not Scanned"; // After school hours
+    }
+    
+    // Check if late (after 06:10 AM)
+    if (hour24 > 6 || (hour24 === 6 && minutes > 10)) {
+      return "Late";
+    }
+    
+    return "Present";
     
   } catch (error) {
     console.error("Error calculating status:", error);
@@ -263,17 +344,17 @@ function getStatus(inTime) {
   }
 }
 
-// Flexible QR code parser - handles multiple formats
+// Flexible QR code parser
 function parseQRCode(qrText) {
   if (!qrText) return null;
   
   const text = qrText.toUpperCase().trim();
   
+  // Try multiple patterns
   const patterns = [
     /STUDENT-(\d{4}-\d+)[-\s]*\(([^)]+)\)[-\s]*\[([^\]]+)\]/i,
     /STUDENT-(\d{4}-\d+)[-\s]*\(([^)]+)\)[-\s]*([^[\]]+)$/i,
-    /STUDENT-(\d{4}-\d+)-\(([^)]+)\)-\[([^\]]+)\]/i,
-    /STUDENT-(\d{4}-\d+).*?\(([^)]+)\).*?\[?([^[\]]+)\]?/i
+    /STUDENT-(\d{4}-\d+)-\(([^)]+)\)-\[([^\]]+)\]/i
   ];
 
   for (const pattern of patterns) {
@@ -303,37 +384,53 @@ function parseQRCode(qrText) {
     }
   }
   
+  // If no pattern matches, return basic info
+  if (text.includes("STUDENT-")) {
+    return {
+      studentId: text.split(/[(\[]/)[0]?.trim() || text,
+      name: "UNKNOWN",
+      section: "UNKNOWN",
+      rawQR: qrText
+    };
+  }
+  
   return null;
 }
 
-// Check student attempts for today
+// Check student attempts for today - USE CONSISTENT COLLECTION
 async function checkAttempts(studentId, date) {
   try {
-    // Try current_attendance first, fall back to scans
-    let attendanceRef;
-    try {
-      // Test if current_attendance exists
-      const testQuery = query(collection(db, "current_attendance"), where("date", "==", date));
-      await getDocs(testQuery);
-      attendanceRef = collection(db, "current_attendance");
-    } catch (e) {
-      // Use scans as fallback
-      attendanceRef = collection(db, "scans");
-    }
+    // Always use "scans" collection for consistency
+    const attendanceRef = collection(db, "scans");
     
     const q = query(
       attendanceRef,
       where("studentId", "==", studentId),
       where("date", "==", date)
     );
+    
     const snapshot = await getDocs(q);
+    
     if (snapshot.empty) {
       return { attemptsUsed: 0, record: null };
     } else {
-      const record = snapshot.docs[0].data();
+      // Get the most recent record
+      const records = [];
+      snapshot.forEach(doc => {
+        records.push({ id: doc.id, ...doc.data() });
+      });
+      
+      // Sort by timestamp if available, otherwise use first record
+      records.sort((a, b) => {
+        const timeA = a.lastUpdated?.toDate?.() || a.createdAt?.toDate?.() || new Date(0);
+        const timeB = b.lastUpdated?.toDate?.() || b.createdAt?.toDate?.() || new Date(0);
+        return timeB - timeA;
+      });
+      
+      const record = records[0];
       return { 
         attemptsUsed: record.attemptsUsed || 0, 
-        record: { ...record, id: snapshot.docs[0].id, collection: attendanceRef.id }
+        record: record
       };
     }
   } catch (error) {
@@ -346,87 +443,134 @@ async function checkAttempts(studentId, date) {
 async function updateAttemptsDisplay() {
   try {
     const settings = await getSettings();
-    attemptsDisplay.innerHTML = "Daily Limits: Max " + settings.maxAttemptsPerDay + " scans per student<br>Late After: " + settings.lateThreshold + " | School Ends: " + settings.schoolHoursEnd;
+    attemptsDisplay.innerHTML = `
+      <div><strong>Daily Limits:</strong> Max ${settings.maxAttemptsPerDay} scans per student</div>
+      <div><strong>Late After:</strong> ${settings.lateThreshold} | <strong>School Ends:</strong> ${settings.schoolHoursEnd}</div>
+    `;
   } catch (error) {
-    attemptsDisplay.innerHTML = "Daily Limits: Max 3 scans per student<br>Late After: 06:10 AM | School Ends: 11:45 AM";
+    attemptsDisplay.innerHTML = `
+      <div><strong>Daily Limits:</strong> Max 3 scans per student</div>
+      <div><strong>Late After:</strong> 06:10 AM | <strong>School Ends:</strong> 11:45 AM</div>
+    `;
   }
 }
 
 async function onScanSuccess(decodedText) {
   if (html5QrcodeScanner) {
     try {
-      await html5QrcodeScanner.clear();
-      html5QrcodeScanner = null;
+      html5QrcodeScanner.pause();
     } catch {}
   }
 
-  resultDiv.innerHTML = "Scanning...";
+  resultDiv.innerHTML = "<div class='scan-status'>🔍 Scanning QR Code...</div>";
 
   const parsedData = parseQRCode(decodedText);
   if (!parsedData) {
-    resultDiv.innerHTML = "Invalid QR code format!";
-    setTimeout(startScanner, 2000);
+    resultDiv.innerHTML = "<div class='scan-status error'>❌ Invalid QR code format! Please use a valid student QR code.</div>";
+    setTimeout(() => {
+      if (html5QrcodeScanner) html5QrcodeScanner.resume();
+    }, 2000);
     return;
   }
 
   const { studentId, name, section } = parsedData;
   
+  // Get current time in Philippines timezone
   const now = new Date();
-  const phTime = now.toLocaleDateString("en-US", { timeZone: "Asia/Manila" }) + ", " + now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Manila" });
+  const phTime = now.toLocaleDateString("en-US", { timeZone: "Asia/Manila" }) + ", " + 
+                 now.toLocaleTimeString("en-US", { 
+                   hour: "2-digit", 
+                   minute: "2-digit", 
+                   hour12: true, 
+                   timeZone: "Asia/Manila" 
+                 });
+  
+  // Use consistent date format (YYYY-MM-DD)
   const today = now.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
   
   try {
-    // Get settings
+    // 1. Check if student is registered
+    const studentCheck = await checkStudentRegistration(studentId);
+    
+    if (!studentCheck.exists) {
+      resultDiv.innerHTML = `
+        <div class='scan-status error'>
+          ❌ Student not registered!<br>
+          <strong>${name}</strong> (${studentId})<br>
+          Please register first.
+        </div>
+      `;
+      setTimeout(() => {
+        if (html5QrcodeScanner) html5QrcodeScanner.resume();
+      }, 3000);
+      return;
+    }
+    
+    // Get student data from registration
+    const studentData = studentCheck.data;
+    
+    // 2. Get settings
     const settings = await getSettings();
     const maxAttempts = settings.maxAttemptsPerDay || 3;
     
-    // Skip student check for now - allow any QR code
-    // Use dummy data for testing
-    const lrn = "123456789000";
-    const strand = "STEM";
-
-    // Check attempts for today
+    // 3. Check attempts for today
     const { attemptsUsed, record } = await checkAttempts(studentId, today);
 
     if (attemptsUsed >= maxAttempts) {
-      resultDiv.innerHTML = name + " - Daily limit reached (" + maxAttempts + "/" + maxAttempts + " scans). Come back tomorrow!";
-      setTimeout(startScanner, 3000);
+      resultDiv.innerHTML = `
+        <div class='scan-status warning'>
+          ⚠️ Daily limit reached!<br>
+          <strong>${name}</strong><br>
+          (${maxAttempts}/${maxAttempts} scans today)<br>
+          Come back tomorrow!
+        </div>
+      `;
+      setTimeout(() => {
+        if (html5QrcodeScanner) html5QrcodeScanner.resume();
+      }, 3000);
       return;
     }
 
-    // Try current_attendance first, fall back to scans
-    let attendanceRef;
-    try {
-      // Test if current_attendance exists
-      const testQuery = query(collection(db, "current_attendance"), where("date", "==", today));
-      await getDocs(testQuery);
-      attendanceRef = collection(db, "current_attendance");
-    } catch (e) {
-      // Use scans as fallback
-      attendanceRef = collection(db, "scans");
-    }
-
+    // 4. Always use "scans" collection for consistency
+    const attendanceRef = collection(db, "scans");
+    
     if (!record) {
       // First scan of the day - create new record (IN)
       const status = getStatus(phTime);
-      await addDoc(attendanceRef, {
+      const newRecord = {
         studentId,
-        name,
-        lrn,
-        strand,
-        section,
+        name: studentData.name || name,
+        lrn: studentData.lrn || "N/A",
+        strand: studentData.strand || "N/A",
+        section: studentData.section || section,
         date: today,
         inTime: phTime,
         outTime: "",
         attemptsUsed: 1,
         status,
         createdAt: serverTimestamp(),
-        lastUpdated: serverTimestamp()
-      });
-      resultDiv.innerHTML = name + " - Timed IN. Status: " + status + ". Time: " + phTime.split(',')[1].trim() + ". Attempts: 1/" + maxAttempts;
+        lastUpdated: serverTimestamp(),
+        registered: true,
+        registrationId: studentCheck.docId
+      };
+      
+      await addDoc(attendanceRef, newRecord);
+      
+      const statusClass = status === "Present" ? "status-present" : 
+                         status === "Late" ? "status-late" : "status-not-scanned";
+      
+      resultDiv.innerHTML = `
+        <div class='scan-status ${statusClass}'>
+          ✅ <strong>${name}</strong> - Timed IN<br>
+          Status: <strong>${status}</strong><br>
+          Time: ${phTime.split(',')[1].trim()}<br>
+          Attempts: 1/${maxAttempts}<br>
+          ${section}
+        </div>
+      `;
     } else {
       // Update existing record
-      const docRef = doc(db, record.collection || attendanceRef.id, record.id);
+      const docRef = doc(db, "scans", record.id);
 
       // Check if IN time exists AND is not empty
       const hasInTime = record.inTime && record.inTime.trim() !== "";
@@ -441,7 +585,19 @@ async function onScanSuccess(decodedText) {
           status: status,
           lastUpdated: serverTimestamp()
         });
-        resultDiv.innerHTML = name + " - Timed IN. Status: " + status + ". Time: " + phTime.split(',')[1].trim() + ". Attempts: " + (attemptsUsed + 1) + "/" + maxAttempts;
+        
+        const statusClass = status === "Present" ? "status-present" : 
+                           status === "Late" ? "status-late" : "status-not-scanned";
+        
+        resultDiv.innerHTML = `
+          <div class='scan-status ${statusClass}'>
+            ✅ <strong>${name}</strong> - Timed IN<br>
+            Status: <strong>${status}</strong><br>
+            Time: ${phTime.split(',')[1].trim()}<br>
+            Attempts: ${attemptsUsed + 1}/${maxAttempts}<br>
+            ${section}
+          </div>
+        `;
       } else if (!hasOutTime) {
         // Has IN time but no OUT time - scan OUT
         await updateDoc(docRef, { 
@@ -449,58 +605,107 @@ async function onScanSuccess(decodedText) {
           attemptsUsed: attemptsUsed + 1,
           lastUpdated: serverTimestamp()
         });
-        resultDiv.innerHTML = name + " - Timed OUT. Time: " + phTime.split(',')[1].trim() + ". Attempts: " + (attemptsUsed + 1) + "/" + maxAttempts;
+        
+        resultDiv.innerHTML = `
+          <div class='scan-status status-present'>
+            ✅ <strong>${name}</strong> - Timed OUT<br>
+            Time: ${phTime.split(',')[1].trim()}<br>
+            Attempts: ${attemptsUsed + 1}/${maxAttempts}<br>
+            ${section}
+          </div>
+        `;
       } else {
         // Already has both IN and OUT times
-        resultDiv.innerHTML = name + " - Already completed today. In: " + (record.inTime?.split(',')[1]?.trim() || 'N/A') + " Out: " + (record.outTime?.split(',')[1]?.trim() || 'N/A');
+        resultDiv.innerHTML = `
+          <div class='scan-status warning'>
+            ⚠️ <strong>${name}</strong><br>
+            Already completed attendance today<br>
+            In: ${record.inTime?.split(',')[1]?.trim() || 'N/A'}<br>
+            Out: ${record.outTime?.split(',')[1]?.trim() || 'N/A'}<br>
+            ${section}
+          </div>
+        `;
       }
     }
 
     // Update attempts display
-    updateAttemptsDisplay();
+    await updateAttemptsDisplay();
 
   } catch (err) {
     console.error("Firestore error:", err);
     
-    // If connection error, show offline mode message
-    if (err.code === 'unavailable' || err.message.includes('failed') || err.message.includes('offline') || err.code === 'permission-denied') {
-      resultDiv.innerHTML = "⚠️ Working offline. Attendance saved locally. Will sync when connection is restored.<br>" + 
-                            name + " - Scanned at: " + phTime.split(',')[1].trim();
-    } else {
-      resultDiv.innerHTML = "Error: " + (err.message || "Unknown error");
+    // More specific error handling
+    let errorMessage = "Unknown error occurred";
+    
+    if (err.code === 'permission-denied') {
+      errorMessage = "Permission denied. Please check Firebase rules.";
+    } else if (err.code === 'unavailable' || err.message.includes('network') || err.message.includes('offline')) {
+      errorMessage = "⚠️ Working offline. Attendance saved locally. Will sync when connection is restored.";
+    } else if (err.message) {
+      errorMessage = `Error: ${err.message}`;
     }
+    
+    resultDiv.innerHTML = `
+      <div class='scan-status error'>
+        ❌ ${errorMessage}<br>
+        Please try again.
+      </div>
+    `;
   }
 
-  setTimeout(startScanner, 3000);
+  // Resume scanner after delay
+  setTimeout(() => {
+    if (html5QrcodeScanner) {
+      try {
+        html5QrcodeScanner.resume();
+      } catch (e) {
+        console.log("Scanner resume error:", e);
+      }
+    }
+    // Clear result after 5 seconds
+    setTimeout(() => {
+      if (resultDiv.innerHTML.includes("✅") || resultDiv.innerHTML.includes("⚠️") || resultDiv.innerHTML.includes("❌")) {
+        resultDiv.innerHTML = "<div class='scan-status'>Ready for next scan...</div>";
+      }
+    }, 5000);
+  }, 3000);
 }
 
 function onScanFailure(error) {
   console.log("Scan error:", error);
+  // Don't show error to user for minor scan failures
 }
 
-function startScanner() {
-  if (html5QrcodeScanner) {
-    try { html5QrcodeScanner.clear(); } catch {}
-    html5QrcodeScanner = null;
-  }
-
-  html5QrcodeScanner = new Html5QrcodeScanner(
-    "reader",
-    { 
-      fps: 10, 
-      qrbox: { width: 250, height: 250 }
-    },
-    false
-  );
-  html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+// File upload QR scanning
+function setupFileUpload() {
+  const fileInput = document.getElementById('file-input');
   
-  // Reset result message
-  resultDiv.innerHTML = "Waiting for scan...";
-}
-
-// Initialize
-updateAttemptsDisplay();
-startScanner();
-</script>
-</body>
-</html>
+  fileInput.addEventListener('change', async function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Pause the camera scanner
+    if (html5QrcodeScanner) {
+      try {
+        html5QrcodeScanner.pause();
+      } catch {}
+    }
+    
+    resultDiv.innerHTML = "<div class='scan-status'>📁 Processing image file...</div>";
+    
+    try {
+      // Use Html5Qrcode to scan from file
+      const html5QrCode = new Html5Qrcode("reader");
+      
+      const decodedText = await html5QrCode.scanFile(file, false);
+      
+      if (decodedText) {
+        // Clear the file input
+        fileInput.value = '';
+        
+        // Process the scanned QR code
+        await onScanSuccess(decodedText);
+      } else {
+        resultDiv.innerHTML = "<div class='scan-status error'>❌ No QR code found in image. Please try another image.</div>";
+        
+   
