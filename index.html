@@ -708,4 +708,66 @@ function setupFileUpload() {
       } else {
         resultDiv.innerHTML = "<div class='scan-status error'>❌ No QR code found in image. Please try another image.</div>";
         
-   
+        // Resume camera scanner
+        setTimeout(() => {
+          if (html5QrcodeScanner) {
+            try {
+              html5QrcodeScanner.resume();
+            } catch {}
+          }
+        }, 2000);
+      }
+    } catch (error) {
+      console.error("File scan error:", error);
+      resultDiv.innerHTML = "<div class='scan-status error'>❌ Error scanning image: " + error.message + "</div>";
+      fileInput.value = '';
+      
+      // Resume camera scanner
+      setTimeout(() => {
+        if (html5QrcodeScanner) {
+          try {
+            html5QrcodeScanner.resume();
+          } catch {}
+        }
+      }, 2000);
+    }
+  });
+}
+
+function startScanner() {
+  if (html5QrcodeScanner) {
+    try { 
+      html5QrcodeScanner.clear(); 
+    } catch {}
+    html5QrcodeScanner = null;
+  }
+  
+  // Initialize file upload
+setupFileUpload();
+
+  html5QrcodeScanner = new Html5QrcodeScanner(
+    "reader",
+    { 
+      fps: 10, 
+      qrbox: { width: 250, height: 250 },
+      supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+      showTorchButtonIfSupported: true,
+      showZoomSliderIfSupported: true
+    },
+    false
+  );
+  
+  html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+  
+  // Reset result message
+  resultDiv.innerHTML = "<div class='scan-status'>Waiting for scan... Point camera at QR code</div>";
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+  updateAttemptsDisplay();
+  startScanner();
+});
+</script>
+</body>
+</html>
