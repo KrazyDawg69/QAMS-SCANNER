@@ -1,0 +1,219 @@
+/* Google font (optional but cute) */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Pacifico&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  height: 100vh;
+  background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+  font-family: 'Poppins', sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Pages */
+.page {
+  display: none;
+  text-align: center;
+  background: #fff;
+  padding: 25px;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 350px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  animation: fadeIn 0.4s ease;
+}
+
+.page.active {
+  display: block;
+}
+
+/* Headings */
+h1 {
+  font-family: 'Pacifico', cursive;
+  color: #e63946;
+  margin-bottom: 15px;
+}
+
+/* Paragraph */
+p {
+  color: #555;
+  margin-bottom: 15px;
+}
+
+/* Images */
+img {
+  border-radius: 15px;
+  margin-bottom: 15px;
+  max-width: 100%;
+}
+
+/* Buttons */
+/* Buttons (ENHANCED – Valentine theme) */
+button,
+a.btn {
+  display: inline-block;
+  background: linear-gradient(135deg, #ff4d6d, #ff758f);
+  color: white;
+  border: none;
+  padding: 12px 22px;
+  margin: 8px;
+  border-radius: 999px; /* pill shape */
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 6px 15px rgba(255, 77, 109, 0.45);
+  transition: 
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.3s ease;
+}
+
+/* Hover = glow + lift */
+button:hover,
+a.btn:hover {
+  background: linear-gradient(135deg, #e63946, #ff4d6d);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 10px 22px rgba(255, 77, 109, 0.6);
+}
+
+/* Click = soft press */
+button:active,
+a.btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 4px 10px rgba(255, 77, 109, 0.4);
+}
+
+/* Optional: secondary "NO" vibe (auto if text contains emoji 😢) */
+button:has(span.no),
+button.no {
+  background: linear-gradient(135deg, #adb5bd, #ced4da);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+button.no:hover {
+  background: linear-gradient(135deg, #868e96, #adb5bd);
+}
+
+/* Fade animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.page {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.page.active {
+  display: block;
+  opacity: 1;
+}
+#photo2 {
+  transition: opacity 0.3s ease;
+}
+
+/* Letter container */
+.letter {
+  position: relative;
+  padding: 25px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #ffd1d9;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  text-align: center;
+  font-style: italic;
+}
+
+/* Left & Right windows */
+.letter::before,
+.letter::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(135deg, #ff9aa2, #ff9aa2);
+  transition: transform 0.6s ease;
+  z-index: 2;
+}
+
+/* Left window */
+.letter::before {
+  left: 0;
+  transform-origin: left;
+}
+
+/* Right window */
+.letter::after {
+  right: 0;
+  transform-origin: right;
+}
+
+/* OPEN STATE */
+.letter.open::before {
+  transform: translateX(-100%);
+}
+
+.letter.open::after {
+  transform: translateX(100%);
+}
+
+/* Text above windows */
+.letter {
+  z-index: 1;
+}
+
+/* Cover text (visible before opening) */
+.cover-text {
+  position: relative;
+  z-index: 3;
+  font-weight: 600;
+  color: white;
+  letter-spacing: 1px;
+}
+
+/* Inside letter text */
+.letter-text {
+  position: relative;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  color: #444;
+}
+
+/* When opened */
+.letter.open .cover-text {
+  opacity: 0;
+}
+
+.letter.open .letter-text {
+  opacity: 1;
+}
+
+input {
+  width: 90%;
+  padding: 10px;
+  margin-bottom: 12px;
+  border-radius: 20px;
+  border: 1px solid #ffb3c1;
+  font-family: 'Poppins', sans-serif;
+  text-align: center;
+}
+
