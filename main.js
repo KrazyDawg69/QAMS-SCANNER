@@ -39,10 +39,10 @@ window.goPage = function(pageNumber) {
 
 // ========== PHOTOS ARRAY ==========
 const photos = [
-  "/IMAGES/f627057a-67a9-4553-af2e-6fd5d35cc91b.jpeg",
-  "/IMAGES/9787b17e-89f2-4533-9bc4-88ebd4620316.jpeg",
-  "/IMAGES/0ec2d0ae-3884-4909-80b3-4458a09eaecd.jpeg",
-  "/IMAGES/fe652c68-e10d-4314-9908-ad3a35bb352f.jpeg"
+  "f627057a-67a9-4553-af2e-6fd5d35cc91b.jpeg",
+  "9787b17e-89f2-4533-9bc4-88ebd4620316.jpeg",
+  "0ec2d0ae-3884-4909-80b3-4458a09eaecd.jpeg",
+  "fe652c68-e10d-4314-9908-ad3a35bb352f.jpeg"
 ];
 
 let photoIndex = 0;
