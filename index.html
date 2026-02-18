@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QAMS - Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(145deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      position: relative;
+      overflow-x: hidden; /* Prevent horizontal scroll */
+    }
+
+    /* Fix zooming - set minimum font size */
+    html {
+      -webkit-text-size-adjust: 100%;
+      -moz-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
+    /* Animated background elements */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(76, 175, 80, 0.1) 0%, transparent 50%);
+      animation: rotate 30s linear infinite;
+      pointer-events: none; /* Prevent interference with buttons */
+    }
+
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 450px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-box {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 40px 35px;
+      border-radius: 30px;
+      box-shadow: 0 20px 50px rgba(46, 125, 50, 0.25),
+                  inset 0 1px 2px rgba(255, 255, 255, 0.6);
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .login-box:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 30px 60px rgba(46, 125, 50, 0.3);
+    }
+
+    /* Header with title and register button */
+    .login-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    h2 {
+      color: #1b5e20;
+      font-weight: 700;
+      font-size: 1.8em;
+      letter-spacing: 1px;
+      margin: 0;
+    }
+
+    .register-btn {
+      padding: 8px 16px;
+      background-color: #1976d2;
+      color: white;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      cursor: pointer;
+      font-size: 14px;
+      box-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
+      white-space: nowrap; /* Prevent text wrapping */
+    }
+
+    .register-btn:hover {
+      background-color: #1565c0;
+      transform: translateY(-2px);
+    }
+
+    /* Logo/Icon */
+    .logo {
+      width: 70px;
+      height: 70px;
+      background: linear-gradient(135deg, #2e7d32, #4caf50);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      box-shadow: 0 10px 20px rgba(46, 125, 50, 0.3);
+    }
+
+    .logo i {
+      font-size: 35px;
+      color: white;
+    }
+
+    .subtitle {
+      color: #4caf50;
+      font-size: 0.9em;
+      margin-bottom: 25px;
+      font-weight: 500;
+    }
+
+    /* Input groups */
+    .input-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .input-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #2e7d32;
+      font-weight: 500;
+      font-size: 0.9em;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 15px;
+      color: #81c784;
+      font-size: 1em;
+      transition: color 0.3s ease;
+      z-index: 2;
+    }
+
+    .input-wrapper input {
+      width: 100%;
+      padding: 14px 45px;
+      border: 2px solid #e0f2e0;
+      border-radius: 15px;
+      font-size: 0.95em;
+      font-family: 'Poppins', sans-serif;
+      transition: all 0.3s ease;
+      background: white;
+      color: #2e7d32;
+    }
+
+    .input-wrapper input:focus {
+      outline: none;
+      border-color: #4caf50;
+      box-shadow: 0 5px 15px rgba(76, 175, 80, 0.2);
+    }
+
+    .input-wrapper input::placeholder {
+      color: #c8e6c9;
+      font-weight: 300;
+      font-size: 0.9em;
+    }
+
+    /* Eye icon for password */
+    .toggle-password {
+      position: absolute;
+      right: 15px;
+      color: #81c784;
+      cursor: pointer;
+      font-size: 1.1em;
+      transition: color 0.3s ease;
+      background: none;
+      border: none;
+      padding: 0;
+      z-index: 2;
+    }
+
+    .toggle-password:hover {
+      color: #2e7d32;
+    }
+
+    /* Login button */
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #2e7d32, #4caf50);
+      border: none;
+      border-radius: 15px;
+      color: white;
+      font-weight: 600;
+      font-size: 1em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 15px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(46, 125, 50, 0.3);
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(46, 125, 50, 0.4);
+    }
+
+    .login-btn:active {
+      transform: translateY(0);
+    }
+
+    .login-btn i {
+      margin-right: 8px;
+    }
+
+    /* Error message */
+    .error {
+      color: #d32f2f;
+      margin-top: 15px;
+      font-size: 0.85em;
+      padding: 10px;
+      background: #ffebee;
+      border-radius: 10px;
+      display: none;
+      animation: shake 0.5s ease;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 25px;
+      color: #81c784;
+      font-size: 0.8em;
+      font-weight: 500;
+    }
+
+    .footer i {
+      color: #4caf50;
+    }
+
+    /* Loading state */
+    .login-btn.loading {
+      pointer-events: none;
+      opacity: 0.8;
+    }
+
+    .login-btn.loading i {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .login-box {
+        padding: 25px 20px;
+      }
+      
+      .login-header {
+        flex-direction: column;
+        gap: 15px;
+      }
+      
+      h2 {
+        font-size: 1.5em;
+      }
+      
+      .register-btn {
+        width: 100%;
+        text-align: center;
+      }
+      
+      .logo {
+        width: 60px;
+        height: 60px;
+      }
+      
+      .logo i {
+        font-size: 30px;
+      }
+    }
+</style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-box">
+      <!-- Logo -->
+      <div class="logo">
+        <i class="fas fa-qrcode"></i>
+      </div>
+
+      <div class="login-header">
+        <h2>LOGIN PAGE</h2>
+        <a href="registered.html" class="register-btn">
+          Register
+        </a>
+      </div>
+      <div class="subtitle">QR Attendance Management System</div>
+
+      <!-- Username Input -->
+      <div class="input-group">
+    <label class="required">QR-CODE ID</label>
+    <input type="text" id="username" placeholder="Enter your QR-CODE ID" required
+           pattern="STUDENT-\d{4}-\d{3}"
+           title="Format: STUDENT-YYYY-NNN (e.g., STUDENT-2025-001)"
+           style="font-family: monospace; width: 100%; padding: 10px; border: 1px solid #a5d6a7; border-radius: 10px;">
+    <small>Format: STUDENT-YYYY-SN (e.g., STUDENT-2025-001)</small>
+</div>
+      
+      
+
+      <!-- Password Input with Eye Toggle -->
+      <div class="input-group">
+        <label for="password">Password</label>
+        <div class="input-wrapper">
+          <i class="fas fa-lock input-icon"></i>
+          <input type="password" id="password" placeholder="Enter your password">
+          <button type="button" class="toggle-password" id="togglePassword" onclick="togglePasswordVisibility()">
+            <i class="fas fa-eye" id="eyeIcon"></i>
+          </button>
+        </div>
+      </div>
+      
+      
+
+      <!-- Login Button -->
+      <button class="login-btn" onclick="login()" id="loginBtn">
+        <i class="fas fa-sign-in-alt"></i> Login
+      </button>
+
+      <!-- Error Message -->
+      <div class="error" id="loginError"></div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <i class="fas fa-clock"></i> QAMS v2.0 • Secure Login
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Password visibility toggle function
+    function togglePasswordVisibility() {
+      const passwordInput = document.getElementById('password');
+      const eyeIcon = document.getElementById('eyeIcon');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeIcon.classList.remove('fa-eye');
+        eyeIcon.classList.add('fa-eye-slash');
+      } else {
+        passwordInput.type = 'password';
+        eyeIcon.classList.remove('fa-eye-slash');
+        eyeIcon.classList.add('fa-eye');
+      }
+    }
+
+    // Add enter key support
+    document.getElementById('password').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        login();
+      }
+    });
+    
+    // Auto-format Username - only for student IDs
+document.getElementById('username').addEventListener('input', function(e) {
+    let value = e.target.value;
+    
+    // Check if it's admin or teacher - skip formatting completely
+    if (value === 'admin' || value === 'teacher') {
+        return; // Don't change anything
+    }
+    
+    // Check if it starts with STUDENT (case insensitive)
+    if (value.toUpperCase().startsWith('STUDENT')) {
+        let formatted = value.toUpperCase().replace(/[^STUDENT0-9\-]/g, '');
+        
+        formatted = formatted.replace(/STUDENT+/g, 'STUDENT');
+        
+        if (formatted === 'STUDENT') {
+            formatted = 'STUDENT-';
+        } else {
+            const parts = formatted.split('-');
+            if (parts.length >= 2) {
+                parts[1] = parts[1].replace(/\D/g, '').substring(0, 4);
+                
+                if (parts[1].length === 4) {
+                    if (parts.length === 2) {
+                        formatted = `STUDENT-${parts[1]}-`;
+                    } else {
+                        parts[2] = parts[2].replace(/\D/g, '').substring(0, 3);
+                        formatted = `STUDENT-${parts[1]}-${parts[2]}`;
+                    }
+                } else {
+                    formatted = `STUDENT-${parts[1]}`;
+                }
+            }
+        }
+        e.target.value = formatted;
+    }
+    // If it's not admin, teacher, or STUDENT, leave as is
+});
+
+// Fix blur event
+document.getElementById('username').addEventListener('blur', function(e) {
+    let value = e.target.value;
+    
+    // Skip formatting for admin/teacher
+    if (value === 'admin' || value === 'teacher') {
+        return;
+    }
+    
+    // Only format STUDENT IDs
+    if (value.toUpperCase().startsWith('STUDENT')) {
+        if (!value.match(/^STUDENT-\d{4}-\d{3}$/i)) {
+            const parts = value.split('-');
+            if (parts.length >= 3) {
+                const year = parts[1].padEnd(4, '0').substring(0, 4);
+                const seq = parts[2].padEnd(3, '0').substring(0, 3);
+                e.target.value = `STUDENT-${year}-${seq}`;
+            } else if (parts.length === 2) {
+                const year = parts[1].padEnd(4, '0').substring(0, 4);
+                e.target.value = `STUDENT-${year}-000`;
+            }
+        }
+    }
+});
+
+// Format on blur to ensure complete format
+document.getElementById('username').addEventListener('blur', function(e) {
+    if (e.target.value && !e.target.value.match(/^STUDENT-\d{4}-\d{3}$/)) {
+        const parts = e.target.value.split('-');
+        if (parts.length >= 3) {
+            const year = parts[1].padEnd(4, '0').substring(0, 4);
+            const seq = parts[2].padEnd(3, '0').substring(0, 3);
+            e.target.value = `STUDENT-${year}-${seq}`;
+        } else if (parts.length === 2) {
+            const year = parts[1].padEnd(4, '0').substring(0, 4);
+            e.target.value = `STUDENT-${year}-000`;
+        }
+    }
+});
+
+    document.getElementById('username').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        document.getElementById('password').focus();
+      }
+    });
+
+    // Login function with loading state
+    async function login() {
+      const user = document.getElementById("username").value.trim();
+      const pass = document.getElementById("password").value.trim();
+      const error = document.getElementById("loginError");
+      const loginBtn = document.getElementById("loginBtn");
+
+      // Hide previous error
+      error.style.display = "none";
+
+      // Validate input
+      if (!user || !pass) {
+        error.textContent = "Please enter both username and password.";
+        error.style.display = "block";
+        return;
+      }
+
+      // Show loading state
+      loginBtn.innerHTML = '<i class="fas fa-spinner"></i> Logging in...';
+      loginBtn.classList.add('loading');
+
+      // Admin login
+      if (user === "admin" && pass === "admin123") {
+        localStorage.setItem("role", "admin");
+        localStorage.setItem("username", user);
+        localStorage.setItem("userName", "Administrator");
+        window.location.href = "adminRecords.html";
+        return;
+      } 
+      
+      // Teacher login
+      if (user === "teacher" && pass === "teacher123") {
+        localStorage.setItem("role", "teacher");
+        localStorage.setItem("username", user);
+        localStorage.setItem("userName", "Teacher");
+        window.location.href = "index2.html";
+        return;
+      } 
+      
+      // Student login - check against Firebase
+      try {
+        // Import Firebase dynamically
+        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js");
+        const { getFirestore, collection, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js");
+        
+        const firebaseConfig = {
+          apiKey: "AIzaSyD9_SnkZwUKhTxWPw0xH5q6RjLSPTWjJDw",
+          authDomain: "qams-2025.firebaseapp.com",
+          projectId: "qams-2025",
+          storageBucket: "qams-2025.firebasestorage.app",
+          messagingSenderId: "827453407305",
+          appId: "1:827453407305:web:c1eba2c58cb57b85d9ff98"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Check users collection for student credentials
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, 
+          where("username", "==", user),
+          where("role", "==", "student")
+        );
+        
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const userData = querySnapshot.docs[0].data();
+          // Simple password check
+          if (btoa(pass) === userData.password) {
+            localStorage.setItem("role", "student");
+            localStorage.setItem("username", user);
+            localStorage.setItem("studentId", userData.studentId || user);
+            localStorage.setItem("studentName", userData.name || "");
+            window.location.href = "studentsrec.html";
+          } else {
+            error.textContent = "Invalid username or password.";
+            error.style.display = "block";
+          }
+        } else {
+          error.textContent = "Invalid username or password.";
+          error.style.display = "block";
+        }
+      } catch (err) {
+        console.error("Login error:", err);
+        error.textContent = "Login failed. Please try again.";
+        error.style.display = "block";
+      } finally {
+        // Reset button state if not redirected
+        if (!window.location.href.includes('adminRecords.html') && 
+            !window.location.href.includes('index2.html') && 
+            !window.location.href.includes('studentsrec.html')) {
+          loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+          loginBtn.classList.remove('loading');
+        }
+      }
+    }
+
+    // Auto-focus username field
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('username').focus();
+    });
+  </script>
+</body>
+</html>
