@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QAMS - Attendance Records</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(145deg, #e8f5e9, #c8e6c9, #a5d6a7);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 12px 50px;
+    }
+    h2 {
+      color: #2e7d32;
+      font-weight: 700;
+      margin-bottom: 15px;
+      font-size: 1.9em;
+      text-align: center;
+    }
+    #search-box {
+      width: 100%;
+      max-width: 480px;
+      padding: 12px 18px;
+      font-size: 1em;
+      border: 2px solid #81c784;
+      border-radius: 12px;
+      outline: none;
+      margin-bottom: 25px;
+      background-color: white;
+      color: #2e7d32;
+    }
+    #records-container {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .date-folder {
+      background: #ffffff;
+      border-radius: 20px;
+      width: 100%;
+      box-shadow: 0 6px 18px rgba(76,175,80,0.15);
+      overflow: hidden;
+    }
+    .date-header {
+      padding: 18px 20px;
+      background: #f1f8e9;
+      cursor: pointer;
+    }
+    .date-text {
+      font-weight: 600;
+      color: #1b5e20;
+      font-size: 1.1em;
+    }
+    .record-list {
+      display: none;
+      padding: 15px 20px 20px;
+      border-top: 1px solid #c8e6c9;
+    }
+    .record-search {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 0.9em;
+      margin-bottom: 15px;
+      border: 2px solid #81c784;
+      border-radius: 10px;
+      outline: none;
+    }
+    .record {
+      background: #f9fbe7;
+      margin: 10px 0;
+      padding: 15px 14px;
+      border-radius: 14px;
+      font-size: 0.95em;
+      color: #33691e;
+      line-height: 1.5;
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85em;
+      margin-top: 6px;
+    }
+    .present { background: #c8e6c9; color: #1b5e20; }
+    .late { background: #fff9c4; color: #f57f17; }
+    .absent { background: #ffcdd2; color: #b71c1c; }
+    a {
+      margin-top: 30px;
+      text-decoration: none;
+      padding: 14px 28px;
+      background-color: #66bb6a;
+      color: white;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 1em;
+    }
+    .empty {
+      margin-top: 40px;
+      color: #4caf50;
+      font-size: 1em;
+      text-align: center;
+    }
+    @media (max-width: 600px) {
+      h2 { font-size: 1.6em; }
+      .record { font-size: 0.9em; }
+      .date-header { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <h2>QAMS Attendance Records</h2>
+  <input type="date" id="search-box" placeholder="Search by date">
+  <div id="records-container"></div>
+  <a href="index.html">Back to Scanner</a>
+  <div class="empty" id="empty-msg" style="display:none;">No records found.</div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { 
+      getFirestore, 
+      collection, 
+      getDocs,
+      query,
+      where
+    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD9_SnkZwUKhTxWPw0xH5q6RjLSPTWjJDw",
+      authDomain: "qams-2025.firebaseapp.com",
+      projectId: "qams-2025",
+      storageBucket: "qams-2025.firebasestorage.app",
+      messagingSenderId: "827453407305",
+      appId: "1:827453407305:web:c1eba2c58cb57b85d9ff98"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const container = document.getElementById("records-container");
+    const emptyMsg = document.getElementById("empty-msg");
+    const searchBox = document.getElementById("search-box");
+    let grouped = {};
+
+    // No role check needed - open access
+    
+    // Load all records
+    async function loadRecords() {
+      const querySnapshot = await getDocs(collection(db, "scans"));
+      grouped = {};
+
+      for (const docSnap of querySnapshot.docs) {
+        const data = docSnap.data();
+        
+        // FIXED LINE: Safer date extraction without .split() error
+        let dateKey = data.date || "Unknown Date";
+        if (!dateKey && data.inTime && typeof data.inTime === 'string') {
+          dateKey = data.inTime.split(",")[0] || "Unknown Date";
+        }
+        dateKey = dateKey.trim();
+        
+        if (!grouped[dateKey]) grouped[dateKey] = [];
+        
+        // Check if student already exists for this date
+        const existingIndex = grouped[dateKey].findIndex(r => r.name === data.name);
+        
+        if (existingIndex === -1) {
+          grouped[dateKey].push({ 
+            ...data
+          });
+        } else {
+          grouped[dateKey][existingIndex] = { 
+            ...data
+          };
+        }
+      }
+
+      displayRecords(Object.keys(grouped));
+    }
+
+    // Display Records - NO DELETE BUTTONS
+    function displayRecords(dateKeys) {
+      container.innerHTML = "";
+      if (!dateKeys || dateKeys.length === 0) {
+        emptyMsg.style.display = "block";
+        return;
+      } else emptyMsg.style.display = "none";
+
+      dateKeys.sort().reverse().forEach(date => {
+        const folder = document.createElement("div");
+        folder.className = "date-folder";
+
+        const header = document.createElement("div");
+        header.className = "date-header";
+
+        const dateText = document.createElement("div");
+        dateText.className = "date-text";
+        dateText.textContent = date;
+
+        header.append(dateText);
+
+        const recordList = document.createElement("div");
+        recordList.className = "record-list";
+
+        const recordSearch = document.createElement("input");
+        recordSearch.type = "text";
+        recordSearch.className = "record-search";
+        recordSearch.placeholder = "Search student by name or ID...";
+        recordList.appendChild(recordSearch);
+
+        const recordsContainer = document.createElement("div");
+        recordList.appendChild(recordsContainer);
+
+        function showRecords(records) {
+          recordsContainer.innerHTML = "";
+          records.forEach(r => {
+            const div = document.createElement("div");
+            div.className = "record";
+            const statusText = r.status || "Not Scanned";
+            const statusClass =
+              statusText.includes("Present") ? "present" :
+              statusText.includes("Late") ? "late" :
+              statusText.includes("Absent") ? "absent" :
+              "absent";
+
+            // NO DELETE BUTTON in the HTML
+            div.innerHTML = `
+              <strong>${r.name}</strong><br>
+              ID: ${r.studentId || '—'}<br>
+              Section: ${r.section || "N/A"}<br>
+              In: ${r.inTime || "—"}<br>
+              Out: ${r.outTime || "—"}<br>
+              <span class="status ${statusClass}">${statusText}</span>
+            `;
+            recordsContainer.appendChild(div);
+          });
+        }
+
+        showRecords(grouped[date]);
+        recordSearch.addEventListener("input", () => {
+          const q = recordSearch.value.toLowerCase();
+          const filtered = grouped[date].filter(r =>
+            (r.name?.toLowerCase().includes(q) || (r.studentId || "").toLowerCase().includes(q))
+          );
+          showRecords(filtered);
+        });
+
+        header.onclick = () => {
+          recordList.style.display = recordList.style.display === "block" ? "none" : "block";
+        };
+
+        folder.append(header, recordList);
+        container.appendChild(folder);
+      });
+    }
+
+    searchBox.addEventListener("change", () => {
+      const selectedDate = searchBox.value;
+      if (!selectedDate) displayRecords(Object.keys(grouped));
+      else {
+        const filtered = Object.keys(grouped).filter(date => date.includes(selectedDate));
+        displayRecords(filtered);
+      }
+    });
+
+    await loadRecords();
+  </script>
+</body>
+</html>

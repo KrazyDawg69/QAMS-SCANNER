@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Student Registration - QAMS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+  <script type="module" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9, #a5d6a7);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      line-height: 1.5;
+    }
+    
+    .register-container {
+      width: 100%;
+      max-width: 450px;
+      margin: 0 auto;
+    }
+    
+    .register-box {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 8px 25px rgba(76, 175, 80, 0.15);
+      width: 100%;
+      position: relative;
+    }
+    
+    /* QR Scanner Button */
+    .qr-scanner-btn {
+      position: absolute;
+      top: 25px;
+      right: 25px;
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
+      z-index: 10;
+    }
+    
+    .qr-scanner-btn:hover {
+      background: #1565c0;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+    }
+    
+    .qr-scanner-btn:active {
+      transform: translateY(0);
+    }
+    
+    h2 {
+      color: #2e7d32;
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 1.8rem;
+      font-weight: 600;
+      padding-right: 90px; /* Make space for the QR button */
+    }
+    
+    .form-group {
+      margin-bottom: 18px;
+      position: relative;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: #388e3c;
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid #c8e6c9;
+      border-radius: 8px;
+      font-size: 16px;
+      font-family: 'Poppins', sans-serif;
+      transition: all 0.2s ease;
+      background: #f9fdf9;
+    }
+    
+    input:hover, select:hover {
+      border-color: #81c784;
+      background: white;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: #4caf50;
+      box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.15);
+      background: white;
+    }
+    
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(145deg, #66bb6a, #57a05b);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.3s;
+      letter-spacing: 0.5px;
+    }
+    
+    button:hover {
+      background: linear-gradient(145deg, #57a05b, #4c8c4f);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    .error {
+      color: #d32f2f;
+      background: #ffebee;
+      padding: 12px;
+      border-radius: 6px;
+      margin: 15px 0;
+      display: none;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      border-left: 4px solid #d32f2f;
+    }
+    
+    .success {
+      color: #2e7d32;
+      background: #e8f5e9;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 15px 0;
+      display: none;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      border-left: 4px solid #4caf50;
+    }
+    
+    .login-link {
+      text-align: center;
+      margin-top: 25px;
+      color: #666;
+      font-size: 0.95rem;
+      padding-top: 20px;
+      border-top: 1px solid #e0e0e0;
+    }
+    
+    .login-link a {
+      color: #4caf50;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+    
+    .login-link a:hover {
+      color: #388e3c;
+      text-decoration: underline;
+    }
+    
+    .required::after {
+      content: " *";
+      color: #d32f2f;
+      font-weight: bold;
+    }
+    
+    small {
+      color: #666;
+      font-size: 0.85rem;
+      display: block;
+      margin-top: 4px;
+      line-height: 1.3;
+    }
+    
+    /* Password toggle eye button */
+    .password-toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      padding: 0;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+    
+    .password-toggle:hover {
+      color: #4caf50;
+      background: rgba(76, 175, 80, 0.1);
+    }
+    
+    .password-toggle:active {
+      transform: translateY(-50%) scale(0.95);
+    }
+    
+    /* Add extra padding to password inputs for the eye icon */
+    input[type="password"],
+    input[type="text"]#passwordField,
+    input[type="text"]#confirmPasswordField {
+      padding-right: 50px;
+    }
+    
+    /* Better spacing for mobile */
+    @media (max-width: 480px) {
+      body {
+        padding: 15px;
+        align-items: flex-start;
+        padding-top: 30px;
+      }
+      
+      .register-box {
+        padding: 20px;
+        border-radius: 10px;
+      }
+      
+      .qr-scanner-btn {
+        position: relative;
+        top: auto;
+        right: auto;
+        width: 100%;
+        margin-bottom: 15px;
+        justify-content: center;
+      }
+      
+      h2 {
+        font-size: 1.6rem;
+        margin-bottom: 18px;
+        padding-right: 0;
+      }
+      
+      .form-group {
+        margin-bottom: 16px;
+      }
+      
+      input, select {
+        padding: 11px 13px;
+        font-size: 15px;
+      }
+      
+      input[type="password"],
+      input[type="text"]#passwordField,
+      input[type="text"]#confirmPasswordField {
+        padding-right: 45px;
+      }
+      
+      .password-toggle {
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
+      }
+      
+      button {
+        padding: 13px;
+        font-size: 15px;
+      }
+      
+      .login-link {
+        margin-top: 20px;
+        font-size: 0.9rem;
+      }
+    }
+    
+    /* Tablet and larger screens */
+    @media (min-width: 768px) {
+      .register-container {
+        max-width: 480px;
+      }
+      
+      .register-box {
+        padding: 30px;
+        border-radius: 14px;
+      }
+      
+      h2 {
+        font-size: 2rem;
+        margin-bottom: 25px;
+      }
+    }
+    
+    /* Input placeholders */
+    ::placeholder {
+      color: #90a4ae;
+      opacity: 0.8;
+    }
+    
+    /* Focus states for better accessibility */
+    input:focus::placeholder, select:focus::placeholder {
+      opacity: 0.5;
+    }
+    
+    /* Custom select arrow */
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234caf50'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 20px;
+      padding-right: 40px;
+    }
+    
+    /* Animation for messages */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .error, .success {
+      animation: fadeIn 0.3s ease-out;
+    }
+    
+    /* Loading state for button */
+    button.loading {
+      opacity: 0.8;
+      cursor: not-allowed;
+    }
+    
+    /* Animation for eye icon */
+    @keyframes fadeScale {
+      0% { transform: translateY(-50%) scale(0.8); opacity: 0; }
+      100% { transform: translateY(-50%) scale(1); opacity: 1; }
+    }
+    
+    .password-toggle i {
+      animation: fadeScale 0.2s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="register-container">
+    <div class="register-box">
+      <!-- QR Scanner Button -->
+      <a href="index.html" class="qr-scanner-btn">
+        <span>LOGIN</span>
+      </a>
+      
+      <h2>Student Registration</h2>
+      
+      <div id="errorMsg" class="error"></div>
+      <div id="successMsg" class="success"></div>
+      
+      <form id="registrationForm">
+        <div class="form-group">
+          <label class="required">Full Name (Last, First Middle)</label>
+          <input type="text" id="fullName" placeholder="SENCIL, RALPH IAN E" required>
+          <small>Format: LASTNAME, FIRSTNAME MIDDLEINITIAL</small>
+        </div>
+        
+        <div class="form-group">
+          <label class="required">12-digit LRN</label>
+          <input type="text" id="lrn" placeholder="123456789001" maxlength="12" required>
+          <small>Enter your 12-digit Learner Reference Number</small>
+        </div>
+        
+        <div class="form-group">
+    <label class="required">Student ID (from QR Code)</label>
+    <input type="tel" id="studentId" placeholder="STUDENT-2025-001" required
+           pattern="STUDENT-\d{4}-\d{3}"
+           title="Format: STUDENT-YYYY-NNN (e.g., STUDENT-2025-001)"
+           style="font-family: monospace;">
+    <small>Format: STUDENT-YYYY-SN (e.g., STUDENT-2025-001)</small>
+</div>
+        
+        <div class="form-group">
+          <label class="required">Strand</label>
+          <select id="strand" required>
+            <option value="">Select Strand</option>
+            <option value="STEM">STEM</option>
+            <option value="HUMSS">HUMSS</option>
+            <option value="ABM">ABM</option>
+            <option value="GAS">GAS</option>
+            <option value="FBS">FBS</option>
+            <option value="CP">CP</option>
+            <option value="ANIMATION">ANIMATION</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label class="required">Section</label>
+          <input type="text" id="section" placeholder="CP-12-BILL GATES" required>
+          <small>Your class section (e.g., CP-12-BILL GATES)</small>
+        </div>
+        
+        <div class="form-group">
+          <label class="required">Email Address</label>
+          <input type="email" id="email" placeholder="student@school.edu.ph" required>
+        </div>
+        
+        <div class="form-group">
+          <label class="required">Create Password</label>
+          <div style="position: relative;">
+            <input type="password" id="password" placeholder="••••••••" required>
+            <button type="button" class="password-toggle" id="togglePassword">
+              👁️
+            </button>
+          </div>
+          <small>Minimum 6 characters</small>
+        </div>
+        
+        <div class="form-group">
+          <label class="required">Confirm Password</label>
+          <div style="position: relative;">
+            <input type="password" id="confirmPassword" placeholder="••••••••" required>
+            <button type="button" class="password-toggle" id="toggleConfirmPassword">
+              👁️
+            </button>
+          </div>
+        </div>
+        
+        <button type="submit">Register</button>
+      </form>
+      
+      <div class="login-link">
+        Already registered? <a href="index.html">RETURN TO LOGIN</a>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { 
+    getFirestore, 
+    collection, 
+    addDoc,
+    query,
+    where,
+    getDocs
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyD9_SnkZwUKhTxWPw0xH5q6RjLSPTWjJDw",
+    authDomain: "qams-2025.firebaseapp.com",
+    projectId: "qams-2025",
+    storageBucket: "qams-2025.firebasestorage.app",
+    messagingSenderId: "827453407305",
+    appId: "1:827453407305:web:c1eba2c58cb57b85d9ff98"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const form = document.getElementById('registrationForm');
+const errorMsg = document.getElementById('errorMsg');
+const successMsg = document.getElementById('successMsg');
+
+// Format Student ID with QR format
+function formatStudentId(input) {
+    // Remove any non-alphanumeric except hyphen
+    let value = input.value.toUpperCase().replace(/[^STUDENT0-9\-]/g, '');
+    
+    // Auto-format to STUDENT-YYYY-NNN
+    if (value.startsWith('STUDENT')) {
+        value = value.replace(/STUDENT+/g, 'STUDENT');
+        
+        if (value === 'STUDENT') value = 'STUDENT-';
+        
+        const parts = value.split('-');
+        if (parts.length >= 2) {
+            parts[1] = parts[1].replace(/\D/g, '').substring(0, 4);
+            
+            if (parts[1].length === 4) {
+                if (parts.length === 2) value = `STUDENT-${parts[1]}-`;
+                else {
+                    parts[2] = parts[2].replace(/\D/g, '').substring(0, 3);
+                    value = `STUDENT-${parts[1]}-${parts[2]}`;
+                }
+            } else {
+                value = `STUDENT-${parts[1]}`;
+            }
+        }
+    } else if (value && !value.startsWith('STUDENT')) {
+        value = 'STUDENT-' + value.replace(/[^0-9\-]/g, '');
+    }
+    
+    input.value = value;
+}
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const fullName = document.getElementById('fullName').value.trim().toUpperCase();
+    const lrn = document.getElementById('lrn').value.trim();
+    const studentId = document.getElementById('studentId').value.trim().toUpperCase();
+    const strand = document.getElementById('strand').value;
+    const section = document.getElementById('section').value.trim().toUpperCase();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+
+    errorMsg.style.display = 'none';
+    successMsg.style.display = 'none';
+
+    if (!fullName || !lrn || !studentId || !strand || !section || !email || !password) {
+        showError('All fields are required!');
+        return;
+    }
+
+    if (lrn.length !== 12 || !/^\d{12}$/.test(lrn)) {
+        showError('LRN must be exactly 12 digits!');
+        return;
+    }
+
+    if (!studentId.match(/^STUDENT-\d{4}-\d{3}$/)) {
+        showError('Student ID must be in format: STUDENT-YYYY-NNN (e.g., STUDENT-2025-001)');
+        return;
+    }
+
+    const year = parseInt(studentId.split('-')[1]);
+    const currentYear = new Date().getFullYear();
+    if (year < 2000 || year > currentYear + 1) {
+        showError('Year in Student ID must be between 2000 and ' + (currentYear + 1));
+        return;
+    }
+
+    if (password !== confirmPassword) {
+        showError('Passwords do not match!');
+        return;
+    }
+
+    if (password.length < 6) {
+        showError('Password must be at least 6 characters!');
+        return;
+    }
+
+    try {
+        const studentsRef = collection(db, "students");
+        const q1 = query(studentsRef, where("studentId", "==", studentId));
+        const q2 = query(studentsRef, where("lrn", "==", lrn));
+        const q3 = query(studentsRef, where("email", "==", email));
+        
+        const [snap1, snap2, snap3] = await Promise.all([
+            getDocs(q1),
+            getDocs(q2),
+            getDocs(q3)
+        ]);
+
+        if (!snap1.empty) {
+            showError('Student ID already registered!');
+            return;
+        }
+
+        if (!snap2.empty) {
+            showError('LRN already registered!');
+            return;
+        }
+
+        if (!snap3.empty) {
+            showError('Email already registered!');
+            return;
+        }
+
+        const qrFormat = `${studentId}(${fullName})[${section}]`;
+
+        await addDoc(collection(db, "students"), {
+            studentId,
+            name: fullName,
+            lrn,
+            strand,
+            section,
+            email,
+            qrFormat,
+            password: btoa(password),
+            createdAt: new Date(),
+            status: "ACTIVE",
+            lastLogin: null
+        });
+
+        await addDoc(collection(db, "users"), {
+            username: studentId,
+            email,
+            password: btoa(password),
+            role: "student",
+            studentId,
+            name: fullName,
+            createdAt: new Date()
+        });
+
+        successMsg.innerHTML = `
+            ✅ Registration Successful!<br><br>
+            <strong>Student ID:</strong> ${studentId}<br>
+            <strong>Name:</strong> ${fullName}<br>
+            <strong>LRN:</strong> ${lrn}<br>
+            <strong>Strand:</strong> ${strand}<br>
+            <strong>Section:</strong> ${section}<br><br>
+            <strong>QR Format:</strong><br>
+            <code style="background: #f0f0f0; padding: 10px; display: block; border-radius: 5px; margin-top: 5px;">
+                ${qrFormat}
+            </code><br>
+            You can now login with your Student ID and password.
+        `;
+        successMsg.style.display = 'block';
+        
+        form.reset();
+        successMsg.scrollIntoView({ behavior: 'smooth' });
+
+    } catch (error) {
+        console.error('Registration error:', error);
+        showError('Registration failed: ' + error.message);
+    }
+});
+
+function showError(message) {
+    errorMsg.textContent = message;
+    errorMsg.style.display = 'block';
+    errorMsg.scrollIntoView({ behavior: 'smooth' });
+}
+
+document.getElementById('studentId').addEventListener('input', function(e) {
+    formatStudentId(e.target);
+});
+
+document.getElementById('studentId').addEventListener('blur', function(e) {
+    if (e.target.value && !e.target.value.match(/^STUDENT-\d{4}-\d{3}$/)) {
+        const parts = e.target.value.split('-');
+        if (parts.length >= 3) {
+            const year = parts[1].padEnd(4, '0').substring(0, 4);
+            const seq = parts[2].padEnd(3, '0').substring(0, 3);
+            e.target.value = `STUDENT-${year}-${seq}`;
+        } else if (parts.length === 2) {
+            const year = parts[1].padEnd(4, '0').substring(0, 4);
+            e.target.value = `STUDENT-${year}-000`;
+        }
+    }
+});
+
+document.getElementById('lrn').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 12) value = value.substring(0, 12);
+    e.target.value = value;
+});
+
+document.getElementById('fullName').addEventListener('blur', function(e) {
+    e.target.value = e.target.value.toUpperCase();
+});
+
+document.getElementById('section').addEventListener('blur', function(e) {
+    e.target.value = e.target.value.toUpperCase().replace(/\s+/g, '-');
+});
+
+// Password visibility toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const togglePassword = document.getElementById('togglePassword');
+    const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
+    const passwordField = document.getElementById('password');
+    const confirmPasswordField = document.getElementById('confirmPassword');
+    
+    if (togglePassword) {
+        togglePassword.addEventListener('click', function() {
+            const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordField.setAttribute('type', type);
+            this.innerHTML = type === 'password' ? '👁️' : '👁️‍🗨️';
+        });
+    }
+    
+    if (toggleConfirmPassword) {
+        toggleConfirmPassword.addEventListener('click', function() {
+            const type = confirmPasswordField.getAttribute('type') === 'password' ? 'text' : 'password';
+            confirmPasswordField.setAttribute('type', type);
+            this.innerHTML = type === 'password' ? '👁️' : '👁️‍🗨️';
+        });
+    }
+});
+</script>
+  
+</body>
+</html>
