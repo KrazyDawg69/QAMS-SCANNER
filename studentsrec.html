@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QAMS - My Attendance Records</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(145deg, #e8f5e9, #c8e6c9, #a5d6a7);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 12px 40px;
+    }
+
+    .container {
+      max-width: 800px;
+      width: 100%;
+    }
+
+    h1 {
+      color: #2e7d32;
+      font-weight: 700;
+      margin-bottom: 20px;
+      font-size: 2em;
+      text-align: center;
+    }
+
+    /* Student Info Section */
+    #studentInfo {
+      background: linear-gradient(135deg, #2e7d32, #4caf50);
+      color: white;
+      padding: 25px;
+      border-radius: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 10px 25px rgba(46, 125, 50, 0.3);
+      width: 100%;
+    }
+
+    #studentInfo h2 {
+      color: white;
+      margin-bottom: 10px;
+      font-size: 1.8em;
+    }
+
+    #studentInfo p {
+      font-size: 1.1em;
+      margin: 5px 0;
+      opacity: 0.95;
+    }
+
+    /* Stats Cards */
+    #stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      margin-bottom: 30px;
+      width: 100%;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 15px;
+      padding: 20px 10px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .stat-card h3 {
+      color: #666;
+      font-size: 0.9em;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    .stat-card .number {
+      font-size: 2em;
+      font-weight: bold;
+    }
+
+    .stat-card.present .number { color: #2e7d32; }
+    .stat-card.late .number { color: #f57f17; }
+    .stat-card.absent .number { color: #c62828; }
+
+    #search-box {
+      width: 100%;
+      padding: 12px 18px;
+      font-size: 1em;
+      border: 2px solid #81c784;
+      border-radius: 12px;
+      outline: none;
+      margin-bottom: 25px;
+      background-color: white;
+      color: #2e7d32;
+    }
+
+    #records-container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      margin-bottom: 30px;
+    }
+
+    .date-folder {
+      background: #ffffff;
+      border-radius: 20px;
+      width: 100%;
+      box-shadow: 0 6px 18px rgba(76,175,80,0.15);
+      overflow: hidden;
+    }
+
+    .date-header {
+      padding: 18px 20px;
+      background: #f1f8e9;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .date-text {
+      font-weight: 600;
+      color: #1b5e20;
+      font-size: 1.1em;
+    }
+
+    .record-list {
+      display: none;
+      padding: 15px 20px 20px;
+      border-top: 1px solid #c8e6c9;
+    }
+
+    .record {
+      background: #f9fbe7;
+      margin: 10px 0;
+      padding: 15px 14px;
+      border-radius: 14px;
+      font-size: 0.95em;
+      color: #33691e;
+      line-height: 1.5;
+      border-left: 4px solid transparent;
+    }
+
+    .record.present { border-left-color: #2e7d32; }
+    .record.late { border-left-color: #f57f17; }
+    .record.absent { border-left-color: #c62828; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85em;
+      margin-top: 6px;
+    }
+
+    .present-badge { background: #c8e6c9; color: #1b5e20; }
+    .late-badge { background: #fff9c4; color: #f57f17; }
+    .absent-badge { background: #ffcdd2; color: #b71c1c; }
+    .pending-badge { background: #e0e0e0; color: #616161; }
+
+    .button-group {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      text-decoration: none;
+      padding: 12px 25px;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 1em;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s, background 0.3s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-primary {
+      background-color: #66bb6a;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #4caf50;
+    }
+
+    .btn-danger {
+      background-color: #e53935;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #c62828;
+    }
+
+    .btn-success {
+      background-color: #28a745;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background-color: #218838;
+    }
+
+    .empty {
+      margin-top: 40px;
+      color: #4caf50;
+      font-size: 1em;
+      text-align: center;
+    }
+
+    .no-records {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      background: white;
+      border-radius: 15px;
+      font-size: 1.1em;
+    }
+
+    .error {
+      background: #ffebee;
+      color: #c62828;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    @media (max-width: 768px) {
+      #stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      h1 { font-size: 1.6em; }
+      .record { font-size: 0.9em; }
+      .date-header { padding: 16px; }
+      
+      .button-group {
+        flex-direction: column;
+      }
+      
+      .btn {
+        width: 100%;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>My Attendance Records</h1>
+
+    <!-- Student Info Section -->
+    <div id="studentInfo">
+      <h2>Loading student information...</h2>
+    </div>
+
+    <!-- Stats Section -->
+    <div id="stats"></div>
+
+    <input type="date" id="search-box" placeholder="Search by date" />
+
+    <div id="records-container"></div>
+    
+    <div class="button-group">
+      <button onclick="refreshRecords()" class="btn btn-success">
+        Refresh Records
+      </button>
+      <a href="index2.html" class="btn btn-primary">Scanner</a>
+      <button onclick="logout()" class="btn btn-danger">
+        Logout
+      </button>
+    </div>
+    
+    <div class="empty" id="empty-msg" style="display:none;">No records found.</div>
+  </div>
+
+  <script type="module">
+// Suppress Firestore WebChannel errors
+const originalConsoleError = console.error;
+console.error = function(...args) {
+    if (args[0] && typeof args[0] === 'string' && 
+        (args[0].includes('WebChannelConnection') || 
+         args[0].includes('RPC') || 
+         args[0].includes('transport errored'))) {
+        return;
+    }
+    originalConsoleError.apply(console, args);
+};
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { 
+    getFirestore, collection, getDocs, query, where 
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyD9_SnkZwUKhTxWPw0xH5q6RjLSPTWjJDw",
+    authDomain: "qams-2025.firebaseapp.com",
+    projectId: "qams-2025",
+    storageBucket: "qams-2025.firebasestorage.app",
+    messagingSenderId: "827453407305",
+    appId: "1:827453407305:web:c1eba2c58cb57b85d9ff98"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// DOM Elements
+const container = document.getElementById("records-container");
+const emptyMsg = document.getElementById("empty-msg");
+const studentInfo = document.getElementById("studentInfo");
+const statsContainer = document.getElementById("stats");
+const searchBox = document.getElementById("search-box");
+
+// State
+let studentData = {};
+let attendanceRecords = [];
+let allRecords = [];
+
+// Get student info from localStorage
+function getStudentInfo() {
+    return {
+        studentId: localStorage.getItem("studentId"),
+        studentName: localStorage.getItem("studentName"),
+        username: localStorage.getItem("username")
+    };
+}
+
+// Check if user is logged in
+function checkAuth() {
+    const role = localStorage.getItem("role");
+    if (role !== "student") {
+        window.location.href = "index.html";
+    }
+}
+
+// Logout function
+window.logout = function() {
+    const authItems = ['role', 'username', 'studentId', 'studentName', 'userName'];
+    authItems.forEach(item => localStorage.removeItem(item));
+    window.location.href = "index.html";
+};
+
+// Refresh function
+window.refreshRecords = function() {
+    loadStudentRecords();
+};
+
+// Check if date is past deadline (11:45 AM)
+function isPastDeadline(dateString) {
+    try {
+        const now = new Date();
+        const [month, day, year] = dateString.split('/').map(Number);
+        const recordDate = new Date(year, month - 1, day, 11, 45, 0);
+        return now > recordDate;
+    } catch {
+        return false;
+    }
+}
+
+// Get attendance status
+function getStatus(inTime, outTime, date) {
+    if (!inTime) {
+        return isPastDeadline(date) ? "Absent" : "Not Yet Scanned";
+    }
+    try {
+        const timePart = inTime.split(",")[1]?.trim();
+        if (!timePart) return "Unknown";
+        const [time, modifier] = timePart.split(" ");
+        let [hours, minutes] = time.split(":").map(Number);
+        if (modifier === "PM" && hours !== 12) hours += 12;
+        if (modifier === "AM" && hours === 12) hours = 0;
+        const checkIn = hours * 60 + minutes;
+        const lateThreshold = 6 * 60 + 10;
+        const end = 11 * 60 + 45;
+        if (checkIn <= lateThreshold) return "Present";
+        if (checkIn > lateThreshold && checkIn <= end) return "Late";
+        return "Absent";
+    } catch {
+        return "Unknown";
+    }
+}
+
+// Calculate statistics
+function calculateStats(records) {
+    const stats = { present: 0, late: 0, absent: 0, total: records.length };
+    records.forEach(r => {
+        if (r.status?.includes("Present")) stats.present++;
+        else if (r.status?.includes("Late")) stats.late++;
+        else if (r.status === "Absent") stats.absent++;
+    });
+    return stats;
+}
+
+// Display statistics
+function displayStats(stats) {
+    if (!statsContainer) return;
+    statsContainer.innerHTML = `
+        <div class="stat-card present"><h3>Present</h3><div class="number">${stats.present}</div></div>
+        <div class="stat-card late"><h3>Late</h3><div class="number">${stats.late}</div></div>
+        <div class="stat-card absent"><h3>Absent</h3><div class="number">${stats.absent}</div></div>
+        <div class="stat-card"><h3>Total Days</h3><div class="number">${stats.total}</div></div>
+    `;
+}
+
+// Filter records by date
+function filterByDate(selectedDate) {
+    if (!selectedDate) {
+        displayRecords(attendanceRecords);
+        return;
+    }
+    
+    const filtered = attendanceRecords.filter(day => day.date === selectedDate);
+    displayRecords(filtered);
+}
+
+// Main load function
+async function loadStudentRecords() {
+    try {
+        const { studentId, studentName, username } = getStudentInfo();
+        
+        if (!studentId && !username) {
+            if (studentInfo) {
+                studentInfo.innerHTML = '<h2>Please login again</h2><button onclick="logout()" class="btn btn-danger">Go to Login</button>';
+            }
+            return;
+        }
+
+        if (studentInfo) {
+            studentInfo.innerHTML = '<h2>Loading your records...</h2>';
+        }
+
+        // Get student data
+        try {
+            const studentsRef = collection(db, "students");
+            
+            if (studentId) {
+                const q1 = query(studentsRef, where("studentId", "==", studentId));
+                const snapshot1 = await getDocs(q1);
+                if (!snapshot1.empty) {
+                    studentData = snapshot1.docs[0].data();
+                }
+            }
+            
+            if (!studentData.name && username) {
+                const q2 = query(studentsRef, where("studentId", "==", username));
+                const snapshot2 = await getDocs(q2);
+                if (!snapshot2.empty) {
+                    studentData = snapshot2.docs[0].data();
+                }
+            }
+        } catch (error) {
+            console.log("Student lookup error:", error);
+        }
+
+        // Display student info
+        if (studentInfo) {
+            studentInfo.innerHTML = `
+                <h2>${studentData.name || studentName || username || "Student"}</h2>
+                <p>Student ID: ${studentData.studentId || studentId || username || "N/A"}</p>
+                <p>Section: ${studentData.section || "N/A"} | Strand: ${studentData.strand || "N/A"}</p>
+            `;
+        }
+
+        // Get scan records
+        let scansSnapshot;
+        try {
+            const scansRef = collection(db, "scans");
+            scansSnapshot = await getDocs(scansRef);
+        } catch (error) {
+            console.log("Scans error:", error);
+            if (container) {
+                container.innerHTML = '<div class="error">Unable to load records. Please refresh.</div>';
+            }
+            return;
+        }
+        
+        const groupedByDate = {};
+
+        // Process scans
+        scansSnapshot.forEach(doc => {
+            try {
+                const data = doc.data();
+                
+                const matchesId = data.studentId === (studentData.studentId || studentId || username);
+                const matchesName = data.name?.toUpperCase() === (studentData.name || studentName || "").toUpperCase();
+                
+                if (matchesId || matchesName) {
+                    const dateKey = data.date || data.inTime?.split(",")[0] || "Unknown Date";
+                    const status = getStatus(data.inTime, data.outTime, dateKey);
+                    
+                    if (!groupedByDate[dateKey]) {
+                        groupedByDate[dateKey] = [];
+                    }
+
+                    groupedByDate[dateKey].push({
+                        ...data,
+                        name: data.name || studentData.name || studentName || "Unknown",
+                        studentId: data.studentId || studentData.studentId || studentId || username,
+                        section: data.section || studentData.section || "N/A",
+                        status,
+                        date: dateKey
+                    });
+                }
+            } catch (e) {
+                console.log("Record processing error:", e);
+            }
+        });
+
+        // Convert to array and sort
+        attendanceRecords = Object.entries(groupedByDate)
+            .map(([date, records]) => ({ date, records }))
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Calculate and display stats
+        const allRecords = attendanceRecords.flatMap(d => d.records);
+        displayStats(calculateStats(allRecords));
+
+        // Display records
+        if (attendanceRecords.length === 0) {
+            if (container) {
+                container.innerHTML = '<div class="no-records">No attendance records found for this student.</div>';
+            }
+            if (emptyMsg) {
+                emptyMsg.style.display = "block";
+                emptyMsg.innerHTML = "No records found";
+            }
+        } else {
+            displayRecords(attendanceRecords);
+            if (emptyMsg) {
+                emptyMsg.style.display = "none";
+            }
+        }
+
+    } catch (error) {
+        console.error("Main error:", error);
+        if (studentInfo) {
+            studentInfo.innerHTML = '<h2>Error Loading Data</h2><p>Please check your connection and try again.</p><button onclick="location.reload()" class="btn btn-primary">Refresh Page</button>';
+        }
+    }
+}
+
+// Display records
+function displayRecords(recordsToShow) {
+    if (!container) return;
+    container.innerHTML = "";
+
+    recordsToShow.forEach(({ date, records }) => {
+        const folder = document.createElement("div");
+        folder.className = "date-folder";
+
+        const header = document.createElement("div");
+        header.className = "date-header";
+        header.innerHTML = `
+            <div class="date-text">${date}</div>
+            <span>${records.length}</span>
+        `;
+
+        const recordList = document.createElement("div");
+        recordList.className = "record-list";
+
+        records.forEach(record => {
+            const div = document.createElement("div");
+            
+            let statusClass = "record";
+            let badgeClass = "pending-badge";
+            
+            if (record.status?.includes('Present')) {
+                statusClass += " present";
+                badgeClass = "present-badge";
+            } else if (record.status?.includes('Late')) {
+                statusClass += " late";
+                badgeClass = "late-badge";
+            } else if (record.status?.includes('Absent')) {
+                statusClass += " absent";
+                badgeClass = "absent-badge";
+            }
+            
+            div.className = statusClass;
+
+            div.innerHTML = `
+                <strong>${record.name}</strong>
+                <div>ID: ${record.studentId || '—'}</div>
+                <div>Section: ${record.section || 'N/A'}</div>
+                <div>Time In: ${record.inTime || '—'}</div>
+                <div>Time Out: ${record.outTime || '—'}</div>
+                <span class="status-badge ${badgeClass}">${record.status || 'Unknown'}</span>
+            `;
+
+            recordList.appendChild(div);
+        });
+
+        header.onclick = () => {
+            recordList.style.display = recordList.style.display === "block" ? "none" : "block";
+        };
+
+        folder.appendChild(header);
+        folder.appendChild(recordList);
+        container.appendChild(folder);
+    });
+}
+
+// Search box event
+if (searchBox) {
+    searchBox.addEventListener("change", (e) => {
+        filterByDate(e.target.value);
+    });
+}
+
+// Initialize
+checkAuth();
+
+// Wait for DOM to be fully loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        loadStudentRecords();
+    });
+} else {
+    loadStudentRecords();
+}
+
+// Auto-refresh every minute
+setInterval(() => {
+    if (document.visibilityState === 'visible') {
+        loadStudentRecords();
+    }
+}, 60000);
+</script>
+</body>
+</html>
